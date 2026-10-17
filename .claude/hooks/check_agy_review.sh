@@ -41,8 +41,23 @@ else
     exit 2
 fi
 
+# `--repo` / `-R` で別のリポジトリを指すマージは、そのリポジトリの PR として判定する。
+# 渡さないと、別リポジトリの PR 番号をこのリポジトリの PR として引いて止まる (#14)。
+# 判定を外さない (通さない) のは、レビューを必須にする方針のため。
+# 形は gh が受け付けるもの: `--repo x` / `--repo=x` / `-R x` / `-Rx`。
+repo_args=()
+if [[ "$cmd" =~ (^|[[:space:]])(--repo[=[:space:]]+|-R[=[:space:]]*)([^[:space:]]+) ]]; then
+    repo="${BASH_REMATCH[3]//[\"\']/}"
+    # `owner/name`、または GitHub Enterprise の `HOST/owner/name`。それ以外は python へ渡さず止める。
+    if [[ ! "$repo" =~ ^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+){1,2}$ ]]; then
+        echo "--repo の値を解釈できないため、マージを差し止めました。\`--repo <owner>/<name>\` の形で再実行してください。" >&2
+        exit 2
+    fi
+    repo_args=(--repo "$repo")
+fi
+
 # 判定できない (gh の失敗など) 場合も止める。exit 2 以外は Claude Code がブロックとして扱わない。
-if ! python "$script" --check --pr "$pr" >&2; then
+if ! python "$script" --check --pr "$pr" "${repo_args[@]}" >&2; then
     echo "agy レビューの確認が取れないため、マージを差し止めました (手順: agy-review スキル)。" >&2
     exit 2
 fi
