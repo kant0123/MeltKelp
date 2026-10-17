@@ -1,6 +1,6 @@
 ---
 type: component
-summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定
+summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点
 updated: 2026-10-18
 related: [context-rerank-lessons, engine-base-choice, build-install, overview, recurring-review-findings]
 ---
@@ -84,13 +84,31 @@ imev のプロンプトのタグの誤り(U+E200〜U+E202。正しくは U+EE00�
 
 - 置き場所は `%LOCALAPPDATA%\Meltype\zenz`(llama.dll・ggml*.dll・`ggml-model-Q5_K_M.gguf`)。上流の配布物とインストール先は変えない。
   データフォルダーのバックアップ(`Config/Backup.cs`)は決まったファイルしか入れないので、74MB のモデルは入らない。
-- **llama.dll は azooKey/llama.cpp の b4846(`llama-b4846-bin-win-avx-x64.zip`)のものしか読み込まない**(SHA-256 で確かめる。
-  `LlamaZenzScorer.LlamaSha256`)。`llama_model_params` などの構造体を値で受け渡すので、版が違うと形が合わずに `Meltype.exe` ごと
-  落ちうる。合わなければ読み込まずに並べ替えをしない(フェイルオープン)。版を上げるなら、ヘッダの構造体を突き合わせてから
-  コードとスクリプトのハッシュを両方直す。b4846 の API は `llama_kv_cache_*`(新しい版では `llama_memory_*` に変わっている)。
+- **llama.dll は azooKey/llama.cpp の b4846 の CPU 版(`llama-b4846-bin-win-avx-x64.zip`)と Vulkan 版(`…-win-vulkan-x64.zip`)のものしか
+  読み込まない**(SHA-256 で確かめる。`LlamaZenzScorer.LlamaBuilds`)。`llama_model_params` などの構造体を値で受け渡すので、版が違うと形が
+  合わずに `Meltype.exe` ごと落ちうる。合わなければ読み込まずに並べ替えをしない(フェイルオープン)。版を上げるなら、ヘッダの構造体を
+  突き合わせてからコードとスクリプトのハッシュを両方直す(食い違うと `ZenzRerankTests.InstallScript_PlacesOnlyLlamaBuildsTheScorerLoads` が落ちる)。
+  b4846 の API は `llama_kv_cache_*`(新しい版では `llama_memory_*` に変わっている)。
 - 依存する ggml*.dll は、既定の検索順で別の場所の DLL を拾わないよう、同じフォルダーから先に読み込む。ggml-rpc.dll が欠けると
   llama.dll が読み込めない(imev で踏んだ)。
 - llama.cpp は読み込みの様子を標準エラーに書く(モデルの情報だけで、入力は書かない)。`Meltype.exe` では捨てられる。
+
+## GPU(Vulkan)で採点する
+
+#29。`Install-ZenzRuntime.ps1 -Gpu` で Vulkan 版を置くと、GPU が見つかればモデルを全部 GPU に載せる(`LlamaZenzScorer.Load()`)。
+CPU に戻すときは `-Gpu` を付けずに置き直す(残った `ggml-vulkan.dll` はスクリプトが消す)。設定の項目にはしていない。どちらを使うかは
+置いたランタイムで決まり、Vulkan 版で `n_gpu_layers = 0` にしても、まとまった量の計算は GPU に回るので CPU 版と同じにはならないため。
+
+- **Vulkan だけにした理由:** 手元の GPU は AMD Radeon RX 9060 XT(RDNA4・gfx1200)。b4846 の HIP 版は gfx1030/1100/1101 向けしか無く、
+  CUDA は NVIDIA 専用。Vulkan 版は同じコミットなので、構造体の形を確かめ直さずに済んだ。
+- **GPU が無いとき:** Vulkan 版でも、ggml に GPU の装置が無ければ(`HasGpu()`)CPU で読み込む。GPU に載せられなければ CPU で読み込み直す。
+  Vulkan のドライバー(`vulkan-1.dll`)自体が無い PC では `ggml.dll` が読み込めず、並べ替えをしない(CPU 版を置き直す)。
+- **締め切りで打ち切れない。** abort callback は CPU のバックエンドでしか効かないので、GPU では decode を途中で止められない。
+  1 回の decode が 10〜30ms なので、150ms の予算は decode の前の確認で守れている。
+- **初めての形の decode が 200ms 前後かかる。** 一度に処理するトークンの数ごとに、初回だけシェーダーの準備が走る(実測。ドライバーが exe ごとに
+  覚えるので、同じ exe の 2 回目の起動からは速い)。UI スレッドを止めるので、読み込みの最後に 1〜16・24・32…256 トークンで 1 回ずつ空回しする
+  (`WarmUpGpu()`)。これで初めて起動したときの読み込みは約 3 秒、2 回目からは約 0.55 秒(別スレッドなので変換は止まらない)。
+- メモリ: VRAM に載せても `Meltype.exe` のワーキングセットは減らず、Vulkan のドライバーの分だけ増える(手元で約 265MB → 427MB)。
 
 ## 実測(手元の Windows 11・CPU・6 スレッド、2026-10-18)
 
@@ -104,6 +122,15 @@ imev のプロンプトのタグの誤り(U+E200〜U+E202。正しくは U+EE00�
   | `tools/mozc-compare-cases.tsv`(60 文)導入前 → 後 | 1.71 / 2.60 → 38.8 / 55.2 | 1.58 / 1.94 → 2.43 / 96.1 | 51 → 51 |
 
 - ワーキングセットはモデルの分だけ増える(約 90MB → 195MB)。
+- **GPU(Vulkan 版・RX 9060 XT、2026-10-18、#29)。** 上の「後」を CPU として、同じ条件の `--perf` で比べた。正解の数は変わらない。
+
+  | 例文 | 1 キー cold p95 / p99 (ms) CPU → GPU | 変換 cold p95 / p99 (ms) CPU → GPU |
+  | --- | --- | --- |
+  | `tools/zenz-rerank-cases.tsv` | 40.4 / 58.6 → 16.9 / 25.2 | 1.03 / 1.59 → 1.07 / 1.45 |
+  | `tools/mozc-compare-cases.tsv` | 38.8 / 55.2 → 16.7 / 23.6 | 2.43 / 96.1 → 2.93 / 42.4 |
+
+  採点だけを測ると(候補 5 件・中央値)、毎回違う文脈で 39 → 12〜14ms、文脈が同じで読みが伸びる打鍵で 22 → 5ms、
+  3 秒〜120 秒休んだ後の 1 回目も 13〜18ms(GPU の省電力からの戻りで遅くはならなかった)。
 - `--perf` は最初に 1 周打ってから測るので、zenz の控えを捨てないと cold でも採点の結果を使い回してしまい、導入後のほうが速く見えた
   (`Performance.cs` の cold の前に `PerformanceZenz.ClearCache()` を足したのはそのため)。
 
