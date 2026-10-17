@@ -46,7 +46,7 @@ CI は実際のアプリでの入力を見ないので、この確認は省略�
    powershell -ExecutionPolicy Bypass -File .\scripts\Install-ZenzRuntime.ps1   # imev の一式があれば -Source $env:LOCALAPPDATA\MozcRerank
    ```
 
-   GPU で採点するなら `-Gpu` を付けてもう 1 回実行する(Vulkan 版を `zenzulkan` に置く。CPU 版は `zenz\cpu`)。両方置けば、設定
+   GPU で採点するなら `-Gpu` を付けてもう 1 回実行する(Vulkan 版を `zenz\vulkan` に置く。CPU 版は `zenz\cpu`)。両方置けば、設定
    「zenz を GPU で動かす」で選べる(起動し直すと効く。[[zenz-rerank]] の「GPU(Vulkan)で採点する」)。動いている Meltype が DLL を掴んでいると
    上書きできないので、置き直すときはトレイから終了してから実行し、その後で `Install.cmd` か Meltype の起動で読み込ませる。
    GPU で動いているかは、ログの「zenz: 読み込みました (GPU (Vulkan)・…)」か、`tasklist /M ggml-vulkan.dll` に Meltype.exe が出るかで分かる。
