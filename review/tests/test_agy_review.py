@@ -578,3 +578,44 @@ def test_call_agy_model_mismatch_hint(monkeypatch, tmp_path, err, expect_hint):
     with pytest.raises(ar.ReviewError) as e:
         ar.call_agy("P", "bad-model", 1, tmp_path)
     assert ("--model のモデル名" in str(e.value)) is expect_hint
+
+
+# --- --repo: cwd 以外のリポジトリの PR を判定する (#14) ---------------------------
+def record_gh(monkeypatch, out=""):
+    calls = []
+    monkeypatch.setattr(ar, "gh", lambda *a, **k: calls.append(a) or out)
+    return calls
+
+
+def test_pr_info_without_repo_has_no_repo_flag(monkeypatch):
+    calls = record_gh(monkeypatch, "{}")
+    ar.pr_info(5)
+    assert "--repo" not in calls[0]
+
+
+def test_pr_info_passes_repo(monkeypatch):
+    calls = record_gh(monkeypatch, "{}")
+    ar.pr_info(5, "o/r")
+    assert calls[0][calls[0].index("--repo") + 1] == "o/r"
+
+
+@pytest.mark.parametrize("repo, path, host", [
+    (None, "repos/{owner}/{repo}/issues/5/comments", None),
+    ("o/r", "repos/o/r/issues/5/comments", None),
+    ("ghe.example.com/o/r", "repos/o/r/issues/5/comments", "ghe.example.com"),
+])
+def test_pr_comments_resolves_repo(monkeypatch, repo, path, host):
+    calls = record_gh(monkeypatch)
+    ar.pr_comments(5, repo)
+    args = calls[0]
+    assert path in args
+    assert (args[args.index("--hostname") + 1] if "--hostname" in args else None) == host
+
+
+def test_cmd_check_uses_repo_for_info_and_comments(monkeypatch, capsys):
+    seen = {}
+    monkeypatch.setattr(ar, "pr_info", lambda pr, repo=None: seen.update(info=repo) or {"number": 50, "headRefOid": SHA})
+    monkeypatch.setattr(ar, "pr_comments", lambda pr, repo=None: seen.update(comments=repo) or review(SHA, "APPROVE"))
+    args = type("A", (), {"pr": 50, "repo": "o/r"})()
+    assert ar.cmd_check(args) == 0
+    assert seen == {"info": "o/r", "comments": "o/r"}
