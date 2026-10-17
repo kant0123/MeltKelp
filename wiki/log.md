@@ -91,3 +91,11 @@ grep "^## \[" wiki/log.md | tail -5
   上流 Meltype には無い MeltKelp 側の仕組みなので、取り込みで衝突する心配は無い。テンプレート側にも同じ作りがある。
   #14 の `--repo` / `-R` は、全文の正規表現ではなくマージごとの語から取るようにした。
   agy レビューの指摘(CRLF のヒアドキュメントで終端を見失い素通しになる)を再現して直した。[[recurring-review-findings]] に実例を足した。
+
+## [2026-10-18] ingest | PR #<番号> zenz で漢字変換の候補を文脈つきに並べ替える
+- 新規: [[zenz-rerank]]
+- 更新: [[context-rerank-lessons]], [[overview]], [[build-install]], [[engine-base-choice]]
+- 備考: #2。`HybridConverter` を `ZenzRerankingConverter` で包み、imev の採点(`LlmScorer::Impl::Rank()`)を C# に移した。
+  imev のプロンプトのタグが誤り(U+E200〜。正しくは U+EE00〜)で、imev #33 の「対数確率が鈍い」と、かなの候補を外した理由(写しのカタカナが勝つ)は
+  これが原因だった。タグを直したうえで、かなの候補も採点に入れた(Issue の時点の「外す」から変えた)。llama.dll は b4846 のものしか読み込まない。
+  英単語を挟んだ同じ入力の前の区間が文脈に入らない件は #24。

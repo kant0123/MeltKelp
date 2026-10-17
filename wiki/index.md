@@ -17,9 +17,13 @@ Wiki 全ページのカタログ。質問に答えるとき・作業に着手す
 
 - [[overview]] — MeltKelp とは何か・なぜ独立リポジトリのフォークで、上流に出さず、公式を置き換える前提なのか。各ページへの入口
 
+## Components — モジュール・機能単位 (`components/`)
+
+- [[zenz-rerank]] — zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定
+
 ## Concepts — 横断的な仕組み・設計判断 (`concepts/`)
 
-- [[context-rerank-lessons]] — imev の Mozc 文脈リランカーで踏んだ落とし穴(かな候補の除外・元の順位の事前・学習との順序・採点の鈍さ・250ms の打ち切り)と、MeltKelp で zenz を載せるときの当てはめ方
+- [[context-rerank-lessons]] — imev の Mozc 文脈リランカーで踏んだ落とし穴(かな候補・元の順位の事前・学習との順序・採点の鈍さ・打ち切り)と、MeltKelp の zenz の並べ替えでそれぞれどうしたか。採点の鈍さとカタカナの写しの原因は imev のプロンプトのタグの誤りだった
 - [[engine-base-choice]] — zenz の並べ替えを載せる土台に Meltype を選んだ理由。imev での Mozc 本家・Ohagey(azooKey + Zenzai)の評価と、Meltype に移した決め手
 - [[recurring-review-findings]] — レビューで妥当と判定された指摘を誤りの種類ごとに集約した台帳。着手時と push 前に読む
 - [[upstream-report-stop]] — トレイの「不具合の報告・提案」「直した誤判定を報告」をトレイから消し、報告の URL が上流 Meltype の Issue 画面を開かないようにした理由と仕組み。上流の取り込みで AppInfo.cs・TrayApplicationContext.cs が衝突したときに読む

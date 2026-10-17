@@ -28,7 +28,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
     private readonly WinRtCandidates _windowsCandidates = new();
     // Mozc (同梱の mozc/meltype_mozc_helper.exe) と Microsoft IME を組み合わせた変換エンジン。
     private readonly MozcConverter _mozc = new(Path.Combine(AppContext.BaseDirectory, "mozc", "meltype_mozc_helper.exe"), Path.Combine(Config.AppPaths.DataDirectory, "mozc"));
-    private HybridConverter _hybrid = null!;
+    private ZenzRerankingConverter _hybrid = null!; // MeltKelp #2: HybridConverter を zenz の並べ替えで包む
     private readonly IME.Imm32ImeController _imm32 = new();
     private readonly System.Windows.Forms.Timer _tick = new() { Interval = 100 };
     private int _pumpScheduled;
@@ -81,7 +81,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         };
         Phrases = resolved.Predictor?.Phrases;
         TranslationHistory = resolved.TranslationHistory;
-        _hybrid = new HybridConverter(options.Engine, _mozc, _converter, reading => _windowsCandidates.Get(reading));
+        _hybrid = new ZenzRerankingConverter(new HybridConverter(options.Engine, _mozc, _converter, reading => _windowsCandidates.Get(reading)), new LlamaZenzScorer(), options.ZenzRerank);
         _resolved = resolved;
         Controller = new CompositionController(Gate, detector, _hybrid, this, resolved);
         Controller.Corrected += Corrections.Add;

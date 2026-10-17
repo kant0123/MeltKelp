@@ -46,6 +46,7 @@ internal static class Performance
 
         var mozc = Henkan.Engine;
         IKanjiConverter? inner = mozc ?? Henkan.FallbackConverter;
+        inner = PerformanceZenz.Wrap(inner, mozc is null ? null : mozc.Candidates); // MeltKelp #2: 採点の分も測る
         var converter = inner is null ? null : new TimedConverter(inner);
         var more = mozc is null ? null : new TimedCandidates(mozc.Candidates);
         CompositionTests.Keyboard Keyboard() => new(live: true, converter: converter, moreCandidates: more is null ? null : more.Lookup,
@@ -98,6 +99,7 @@ internal static class Performance
             foreach (var c in cases)
             {
                 mozc?.ClearCache();
+                PerformanceZenz.ClearCache(); // MeltKelp #2
                 cold.Add((c, Type(c)));
                 warm.Add((c, Type(c)));
             }

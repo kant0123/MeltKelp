@@ -2,7 +2,7 @@
 type: concept
 summary: MeltKelp とは何か・なぜ独立リポジトリのフォークで、上流に出さず、公式を置き換える前提なのか。各ページへの入口
 updated: 2026-10-18
-related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings, upstream-update-stop, upstream-report-stop]
+related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings, upstream-update-stop, upstream-report-stop, zenz-rerank]
 ---
 
 # MeltKelp 全体像
@@ -14,7 +14,7 @@ related: [engine-base-choice, context-rerank-lessons, build-install, recurring-r
 
 MeltKelp(とろろ昆布)は、Windows 向けの日本語入力 Meltype(yksr-melt/Meltype、GPL-3.0)の個人用フォーク。
 Meltype の強みである英語と日本語の自動判定をそのまま使い、漢字変換の候補を小型の言語モデル zenz で
-文脈つきに並べ替えることを目指す(#2。2026-10-17 時点では未実装で、中身は上流の Meltype に、上流の自動更新を止める変更 [[upstream-update-stop]] と、報告の導線を上流に向けない変更 [[upstream-report-stop]] を足しただけ)。
+文脈つきに並べ替える([[zenz-rerank]]、#2)。ほかに上流の Meltype に足したのは、上流の自動更新を止める変更 [[upstream-update-stop]] と、報告の導線を上流に向けない変更 [[upstream-report-stop]]。
 
 前身は imev(kant0123/imev。Mozc 本家に zenz の文脈リランカーを載せた個人用 IME)。imev の土台を Meltype に移すと
 決めて立ち上げた。理由は [[engine-base-choice]]、imev で得た並べ替えの知見は [[context-rerank-lessons]]。
