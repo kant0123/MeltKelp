@@ -145,6 +145,12 @@ public sealed record CompositionOptions
     /// <summary>打ったキー (ローマ字) を変換ボックスに出すか (設定、issue #224)。</summary>
     public Func<bool> ShowTypedKeys { get; init; } = () => false;
 
+    /// <summary>MeltKelp: 打ったキーを出すときの形式 (ローマ字・ひらがな・単語ごとに空白を入れたひらがな。MeltKelp #27)。</summary>
+    public Func<TypedKeysStyle> TypedKeysFormat { get; init; } = () => TypedKeysStyle.Romaji;
+
+    /// <summary>MeltKelp: 打ったキーのひらがなを単語に区切る (形態素解析)。null なら区切らない。</summary>
+    public Func<string, IReadOnlyList<string>?>? TypedKeysWords { get; init; }
+
     /// <summary>変換前の Tab で変換を始めるか (設定、issue #219)。</summary>
     public Func<bool> TabConversion { get; init; } = () => false;
 
@@ -2495,7 +2501,7 @@ public sealed class CompositionController
     }
 
     /// <summary>変換ボックスに出す、打ったキー (設定が ON のときだけ)。</summary>
-    private string? TypedKeys() => _options.ShowTypedKeys() && _text.Raw is { Length: > 0 } raw ? raw : null;
+    private string? TypedKeys() => _options.ShowTypedKeys() ? TypedKeysFormatter.Format(_text, _options.TypedKeysFormat(), _options.TypedKeysWords) : null; // MeltKelp #27: 形式を選べる
 
     /// <summary>
     /// 予測変換の候補を、今の打ちかけから作り直す。打った内容が変わったら選んでいた候補は戻す。

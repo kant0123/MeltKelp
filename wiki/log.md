@@ -91,3 +91,7 @@ grep "^## \[" wiki/log.md | tail -5
   上流 Meltype には無い MeltKelp 側の仕組みなので、取り込みで衝突する心配は無い。テンプレート側にも同じ作りがある。
   #14 の `--repo` / `-R` は、全文の正規表現ではなくマージごとの語から取るようにした。
   agy レビューの指摘(CRLF のヒアドキュメントで終端を見失い素通しになる)を再現して直した。[[recurring-review-findings]] に実例を足した。
+
+## [2026-10-18] ingest | PR #TBD 打ったキーの表示形式を選べるようにした(#27)
+- 新規: [[typed-keys-display]]
+- 更新: [[overview]]
