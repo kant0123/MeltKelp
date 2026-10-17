@@ -77,6 +77,18 @@ internal static class ZenzScorerTests
         Assert.Equal("公演", converter.ConvertClauses("こうえん")!.Single().Text, "キャレットの前の文字を文脈にする");
         converter.SetPrecedingText(null);
         Assert.Equal("公園", converter.ConvertClauses("こうえん")!.Single().Text, "文脈が無ければ変換エンジンのまま");
+
+        // 実機で起きたこと: Mozc が 公演 を覚えて先頭に出し、メモ帳の前の行に「著名な研究者の講演」がある。前の行を文脈に入れると 公演 のままだった
+        string[] learned = ["公演", "公園", "講演", "後援", "好演"];
+        var mozcLike = new ZenzRerankingConverter(new LearnedConverter(), _ => learned, scorer, () => true);
+        mozcLike.SetPrecedingText("劇団の千秋楽の公演" + Environment.NewLine + "著名な研究者の講演" + Environment.NewLine);
+        Assert.Equal("街の|公園", string.Join("|", mozcLike.ConvertClauses("まちのこうえん")!.Select(c => c.Text)), "前の行は文脈にしない");
+    }
+
+    private sealed class LearnedConverter : IKanjiConverter
+    {
+        public string? Convert(string hiragana) => "街の公演";
+        public IReadOnlyList<ConversionClause>? ConvertClauses(string hiragana, string? context = null) => [new("まちの", "街の"), new("こうえん", "公演")];
     }
 
     private sealed class FixedConverter : IKanjiConverter

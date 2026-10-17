@@ -156,6 +156,25 @@ internal static class ZenzRerankTests
     }
 
     [Test]
+    public static void Rerank_PrecedingLinesAreNotContext()
+    {
+        // キャレットの前の文字のうち、前の行は文脈にしない (前の行の 講演 に引っぱられて 街の + こうえん → 公演 になった)
+        var scorer = FakeScorer.Prefer("講演", "公演");
+        var converter = Create(new FixedConverter(C("まちの", "街の"), C("こうえん", "公園")), scorer);
+        foreach (var lineBreak in new[] { "\n", "\r\n" })
+        {
+            converter.SetPrecedingText("著名な研究者の講演" + lineBreak);
+            Assert.Equal("街の|公園", string.Join("|", converter.ConvertClauses("まちのこうえん")!.Select(c => c.Text)));
+        }
+        Assert.Equal("街の", scorer.Calls.Single().Context, "最初の文節は文脈が空 (前の行だけ) なので採点しない。2 回目はキャッシュ");
+
+        // 同じ行の中なら、文をまたいでも使う
+        converter.SetPrecedingText("劇団の千秋楽を見た。研究者の講演");
+        converter.ConvertClauses("まちのこうえん");
+        Assert.True(scorer.Calls[^1].Context.EndsWith("見た。研究者の講演街の"), scorer.Calls[^1].Context);
+    }
+
+    [Test]
     public static void Rerank_ContextLimitAppliesAfterAppending()
     {
         // 上限は前の文節を足し込んだ後に掛ける (imev PR #12: 入口だけで切って、追記で伸びていた)

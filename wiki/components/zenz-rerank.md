@@ -30,7 +30,7 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview]
   `CompositionController.Expand()` が先頭を固定したまま後ろに足すだけなので、`Candidates()` だけ並べ替えても先頭は変わらない。
   `Candidates()` は、同じ読みを直前に採点した順に、採点した候補どうしの位置の中で並べ替えるだけ(採点し直さない)。
 - **文脈は zenz 用に別に作る。** 上流の文脈(`ConversionContext()`: 同じ文の日本語・最大 10 文字)は使わず、`_precedingText`
-  (キャレットの前の確定済みの文字。UI Automation と Meltype IME はどちらも 20 文字までしか読まない)に、同じ変換の前の文節
+  (キャレットの前の確定済みの文字。UI Automation と Meltype IME はどちらも 20 文字までしか読まない)の**最後の改行より後ろ**に、同じ変換の前の文節
   (選び直した後のもの)を足し、**足した後に**末尾 20 文字に切る(`ZenzRerankOptions.MaxContextChars`)。
   変換エンジンは変換ボックスと Meltype IME の入力欄ごとの `MeltypeSession` で共有されるので、Controller が変換のたびに
   `IPrecedingTextReceiver.SetPrecedingText()` で渡す形にした。
@@ -103,6 +103,11 @@ imev のプロンプトのタグの誤り(U+E200〜U+E202。正しくは U+EE00�
   (`Performance.cs` の cold の前に `PerformanceZenz.ClearCache()` を足したのはそのため)。
 
 ## 落とし穴
+
+- **前の行を文脈に入れると引っぱられる。** 実機(メモ帳)で、前の行に「著名な研究者の講演」があると、街の + こうえん が 公演 になった。
+  改行を取り除いて「…研究者の講演街の」として採点していたため(公園 -2.88 / 講演 -0.60 / 公演 -0.94)。そこへ Mozc が前の確認で
+  確定した 公演 を先頭に覚えていて、事前の分で 公演 が残った。改行で区切られた行は別の話(メモ帳の行・チャットのメッセージ)のことが
+  多いので、最後の改行より後ろだけを使う。句点(。)をまたぐのは使う(上流の文脈が文をまたがないのを補うのが目的のため)。
 
 - **zenz のタグは U+EE00(入力)・U+EE01(出力)・U+EE02(文脈)。** imev の U+E200〜 は誤りで、正解の候補でも対数確率が -7 前後に
   なり、事前に負けて並び替わりにくかった(imev #33 の「C++ の対数確率が PoC より鈍い」の原因)。直すと正解は -0.0〜-0.3 になる。

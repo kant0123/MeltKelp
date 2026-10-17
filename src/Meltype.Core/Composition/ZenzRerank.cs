@@ -58,7 +58,7 @@ public sealed record ZenzRerankOptions
 /// MeltKelp: 変換エンジン (HybridConverter) を包み、各文節の最初の候補を zenz で文脈つきに選び直す (MeltKelp #2)。
 ///   ・最初の候補は ConvertClauses の各文節の Text で決まるので、並べ替えの本体はここ。Candidates (↑↓・Space の連打で出す一覧) は、
 ///     同じ読みを直前に採点した順に並べ替えるだけ (採点し直さない)
-///   ・文脈は、受け取ったキャレットの前の文字列 + 同じ変換の中の前の文節 (選び直した後のもの)。上限は足し込んだ後に掛ける
+///   ・文脈は、受け取ったキャレットの前の文字列の最後の行 + 同じ変換の中の前の文節 (選び直した後のもの)。上限は足し込んだ後に掛ける
 ///   ・文脈が空・モデルが無い・読み込み中・採点の失敗・時間切れ・例外では、変換エンジンの結果をそのまま返す (フェイルオープン)
 ///   ・かなだけの候補も採点する。imev では読みを写したカタカナ (ゲキダン) が勝つので外していたが、原因は imev のプロンプトの
 ///     タグの誤り (LlamaZenzScorer) で、正しいタグでは文脈つきの写しは低く出る。かなが正解の語 (したい・やって) は、かなが勝つ
@@ -143,7 +143,10 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
     {
         var deadline = Environment.TickCount64 + _options.BudgetMs;
         var result = new List<ConversionClause>(clauses.Count);
-        var context = _precedingText ?? "";
+        // 前の行は使わない: メモ帳の別の行・チャットの別のメッセージなど関係の無いことが多く、引っぱられる
+        // (前の行「著名な研究者の講演」+ 街の + こうえん → 公演 になった)。文をまたぐ (。の前) のは使う
+        var preceding = _precedingText ?? "";
+        var context = preceding[(preceding.LastIndexOfAny(['\n', '\r']) + 1)..];
         foreach (var clause in clauses)
         {
             var text = Environment.TickCount64 < deadline ? Choose(clause, Tail(context, _options.MaxContextChars), deadline) : clause.Text;
