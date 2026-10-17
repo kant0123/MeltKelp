@@ -111,3 +111,9 @@ grep "^## \[" wiki/log.md | tail -5
 - 備考: llama.cpp b4846 の Vulkan 版を CPU 版と並べて読み込める版に足し、`Install-ZenzRuntime.ps1 -Gpu` で置けるようにした。
   手元の RX 9060 XT で、1 キー cold の p95 が約 40ms → 17ms。初めての形の decode が 200ms 前後かかるのを実測で見つけ、
   読み込みの最後にトークンの数を変えて空回しするようにした。GPU では abort callback が効かないことも書いた。
+
+## [2026-10-18] ingest | PR #32 zenz を CPU と GPU のどちらで動かすかを設定で選べるようにする
+- 更新: [[zenz-rerank]], [[build-install]]
+- 備考: CPU 版を `zenz\cpu`、Vulkan 版を `zenz\vulkan` に並べて置き、設定「zenz を GPU で動かす」で選ぶ。Vulkan 版 1 つで
+  `n_gpu_layers` を切り替える案は、0 にしても GPU を使い続けるので、ユーザーの判断で採らなかった。同じ名前の DLL を 1 つのプロセスで
+  読み替えられないので、切り替えは起動し直したときに効く。

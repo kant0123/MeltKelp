@@ -19,7 +19,7 @@ Wiki 全ページのカタログ。質問に答えるとき・作業に着手す
 
 ## Components — モジュール・機能単位 (`components/`)
 
-- [[zenz-rerank]] — zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点
+- [[zenz-rerank]] — zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点と CPU との切り替え
 
 ## Concepts — 横断的な仕組み・設計判断 (`concepts/`)
 

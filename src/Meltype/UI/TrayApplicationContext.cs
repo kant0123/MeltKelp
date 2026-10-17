@@ -58,6 +58,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             Level = () => _engine.AppSettings.DetectionLevel,
             Engine = () => _engine.Settings.ConversionEngine,
             ZenzRerank = () => _engine.Settings.ZenzRerank, // MeltKelp #2
+            ZenzUseGpu = () => _engine.Settings.ZenzUseGpu, // MeltKelp #31
             TranslationCandidates = () => _engine.Settings.TranslationCandidates,
             CandidateMeanings = () => _engine.Settings.ShowCandidateMeanings,
             ShowTypedKeys = () => _engine.Settings.ShowTypedKeys,

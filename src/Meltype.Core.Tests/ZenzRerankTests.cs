@@ -405,6 +405,50 @@ internal static class ZenzRerankTests
     }
 
     [Test]
+    public static void LibraryDirectory_FollowsGpuSetting()
+    {
+        // MeltKelp #31: GPU なら vulkan → cpu、CPU なら cpu だけ。どちらも無ければ zenz の直下 (#31 より前の置き方)
+        var root = Path.Combine(Path.GetTempPath(), "meltkelp-zenz-" + Guid.NewGuid().ToString("N"));
+        void Place(string folder)
+        {
+            var dir = folder.Length == 0 ? root : Path.Combine(root, folder);
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "llama.dll"), "");
+        }
+        string? Pick(bool gpu) => LlamaZenzScorer.LibraryDirectory(root, gpu) is { } d ? Path.GetRelativePath(root, d) : null;
+        try
+        {
+            Directory.CreateDirectory(root);
+            Assert.Equal(null, Pick(true), "何も無い");
+            Assert.True(!new LlamaZenzScorer(root).IsInstalled, "モデルも DLL も無い");
+
+            Place("vulkan");
+            Assert.Equal("vulkan", Pick(true), "GPU は Vulkan 版");
+            Assert.Equal(null, Pick(false), "CPU の設定では Vulkan 版を使わない");
+            Assert.True(!new LlamaZenzScorer(root).IsInstalled, "モデルが無い");
+            File.WriteAllText(Path.Combine(root, LlamaZenzScorer.ModelFile), "");
+            Assert.True(new LlamaZenzScorer(root, () => true).IsInstalled, "GPU: Vulkan 版とモデルがある");
+            Assert.True(!new LlamaZenzScorer(root, () => false).IsInstalled, "CPU: CPU 版が無い");
+
+            Place("cpu");
+            Assert.Equal("vulkan", Pick(true), "両方あれば GPU は Vulkan 版");
+            Assert.Equal("cpu", Pick(false), "両方あれば CPU は CPU 版");
+
+            Directory.Delete(Path.Combine(root, "vulkan"), recursive: true);
+            Assert.Equal("cpu", Pick(true), "Vulkan 版が無ければ GPU でも CPU 版");
+
+            Directory.Delete(Path.Combine(root, "cpu"), recursive: true);
+            Place("");
+            Assert.Equal(".", Pick(true), "前の置き方 (直下)");
+            Assert.Equal(".", Pick(false), "前の置き方 (直下)。直下が Vulkan 版なら Load() が CPU の設定では読み込まない");
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch { }
+        }
+    }
+
+    [Test]
     public static void Tail_DoesNotSplitSurrogatePair()
     {
         Assert.Equal("b", ZenzRerankingConverter.Tail("a😊b", 2), "サロゲートペアの片割れを残さない");
