@@ -33,3 +33,14 @@ native/tip/obj/
 
 # Python のキャッシュ (tools/*.py を動かすと作られる)
 __pycache__/
+
+# MeltKelp: エージェント規約のテンプレートから足したもの
+.claude/settings.local.json
+.claude/worktrees/
+.claude/logs/
+*.pyc
+.env
+
+# agy レビューのレポート(生成物なのでコミットしない)
+review/work/*
+!review/work/.gitkeep

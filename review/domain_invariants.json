@@ -1,0 +1,98 @@
+{
+  "fintech": {
+    "name": "金融・暗号資産・高頻度取引 (FinTech / Quant & Crypto)",
+    "standards": [
+      "ISO 20022",
+      "IEEE 754",
+      "Double Spending Prevention"
+    ],
+    "critical_rules": [
+      "浮動小数点数 (float / double) の金銭計算・金利・手数料への使用を絶対禁止 (decimal.Decimal 必須)",
+      "Banker's Rounding (ROUND_HALF_EVEN) または規格で定められた端数処理の明示",
+      "残高確認から引き落としまでの TOCTOU (Time-of-Check to Time-of-Use) 競合の排除（排他ロック必須）",
+      "市場レート更新のタイムスタンプ逆転許容による Stale Price Arbitrage の防止"
+    ]
+  },
+  "distributed": {
+    "name": "分散システム・イベント駆動 (Distributed Systems & Messaging)",
+    "standards": [
+      "Transactional Outbox",
+      "Exactly-Once Semantics",
+      "Distributed Locking"
+    ],
+    "critical_rules": [
+      "DBコミットとメッセージブローカー(Kafka/RabbitMQ)送信の Dual-Write 分離禁止 (Transactional Outbox パターン必須)",
+      "分散ロックのトランザクション完了前早期解放の禁止 (並行二重決済防止)",
+      "Outboxポーラーにおけるワーカー重複取得防止 (FOR UPDATE SKIP LOCKED の使用)",
+      "冪等性キー (Idempotency Key) による重複リクエスト耐性の担保"
+    ]
+  },
+  "healthcare": {
+    "name": "医療・臨床安全・ヘルスケア (Healthcare & Clinical Safety)",
+    "standards": [
+      "FDA Class I Safety",
+      "ASHP Guidelines",
+      "HIPAA"
+    ],
+    "critical_rules": [
+      "検査値単位 (Unit of Measure: mg/dL vs µmol/L) の型安全な厳密検証 (暗黙変換・未換算の絶対禁止)",
+      "安全投与量上限リミッターの例外握りつぶし禁止 (異常検知時は即時停止・フェイルセーフ)",
+      "血中濃度採血窓における単方向検証 (投与直前トラフ値とピーク濃度の混同防止)",
+      "小児・腎機能低下患者の極限体重・GFR値に対する境界値防御"
+    ]
+  },
+  "embedded": {
+    "name": "組込み・産業IoT・車載RTOS (Embedded & Industrial Robotics)",
+    "standards": [
+      "ISO 26262 ASIL-D",
+      "MISRA C:2012",
+      "POSIX Realtime"
+    ],
+    "critical_rules": [
+      "CANバスフレームのエンディアン厳密性 (Motorola Big-Endian vs Intel Little-Endian の逆転防止)",
+      "割込みサービスルーチン (ISR) 内でのブロッキングMutex取得・動的メモリ確保 (malloc) の絶対禁止",
+      "32bitシステムティックタイマーのラップアラウンド (約49.7日問題) に対する符号なし減算の徹底",
+      "ハードウェア緊急停止 (Fail-Safe) ラインのソフトウェア制御バイパス防止"
+    ]
+  },
+  "general": {
+    "name": "一般的なWeb・バックエンドシステム (General Web / Backend)",
+    "standards": [
+      "OWASP Top 10",
+      "Clean Architecture",
+      "REST Best Practices"
+    ],
+    "critical_rules": [
+      "Timing Attack 脆弱性の排除 (秘密情報・ハッシュ比較における hmac.compare_digest の使用)",
+      "認可漏れ・IDOR (他者リソースへの不正アクセス) の完全防止",
+      "ループ内SQL実行 (N+1クエリ) の排除とバルク一括取得の徹底",
+      "既存DBを破壊する無保護な NOT NULL カラム追加の禁止 (安全なデフォルト値または段階マイグレーション)",
+      "既存テストの改ざん・無力化 (@pytest.mark.skip / コメントアウト) の絶対禁止",
+      "ロジック差分（新規関数・分岐等）に対するテストコードおよび実効アサーションの追加義務 (未テストロジック混入の防止)"
+    ]
+  },
+  "ime": {
+    "name": "Windows 常駐 IME (Meltype のフォーク: C# の Meltype.exe + TSF の DLL + Mozc ヘルパー + ローカル LM)",
+    "standards": [
+      "Text Services Framework (TSF) のテキストサービスの契約",
+      "IKanjiConverter / ILearningConverter の契約 (候補順の書き換えのみ・ユーザーの学習を優先)",
+      "上流 yksr-melt/Meltype の書き方 (周りのコードに合わせる)"
+    ],
+    "critical_rules": [
+      "変換・キー入力の経路 (UI スレッド・キーボードフック・TipServer のパイプ) で未処理の例外・デッドロック・無制限の待ちを起こさない。Meltype.exe が落ちる・固まると全アプリで入力が止まる",
+      "LM 側のあらゆる失敗 (DLL・モデルの読み込み失敗、トークン化・decode の失敗、時間切れ) で元の候補順に戻す (フェイルオープン。候補の欠落・重複・空リストを返さない)",
+      "UI スレッドで呼ばれる同期処理に上限時間を必ず効かせる (採点の打ち切り。モデル読み込みなどの重い処理で変換をブロックしない)。キャッシュは同じ入力に対してだけ効き、古い結果を別の入力に返さない",
+      "入力文字列・文脈・候補 (ユーザーが打った内容 = 個人情報) をログ・ファイル・外部送信に出さない。MeltKelp が足すログに書くのはバイト数・所要時間・状態・数値だけ",
+      "ユーザーが学習した候補・ユーザー辞書の語を、LM の採点で先頭から下げない",
+      "native/tip/ の DLL と、Meltype.exe とのパイプのやり取りの形式 (メッセージの形・パイプ名) を変えない。上流が署名した TIP DLL をそのまま使う前提が壊れる",
+      "インストール先・データフォルダー・TSF の CLSID / プロファイル GUID・設定ファイルの既存キーの意味を上流から変えない (公式を置き換え、設定と学習データを引き継ぐ前提)",
+      "上流のファイルへの変更は差し込み口の最小限に留める。上流のファイルの整形・改名・移動・削除は、上流の取り込みで衝突を生むので欠陥として扱う",
+      "共有状態 (モデル・KV キャッシュ・ロード状態・採点結果のキャッシュ) の、読み込みスレッドと変換要求の間の排他とロード完了前の参照。途中で失敗したとき KV 系列などの中間状態を残さない",
+      "P/Invoke の境界: 構造体のレイアウト・呼び出し規約・文字列の符号化 (UTF-8 / UTF-16)・ネイティブで確保したメモリの解放・32 / 64 ビットの差",
+      "UTF-16 のサロゲートペア・結合文字の途中での切り詰め、文字数とバイト数・トークン数の取り違え",
+      "導入スクリプト (PowerShell) で外部コマンドの終了コード ($LASTEXITCODE) を確かめずに先へ進まない。成功扱いの非ゼロを失敗にしない",
+      "既存テストの改ざん・無力化 (コメントアウト・アサーションの緩和・品質テストの基準の引き下げ) の禁止",
+      "ロジック差分に対するテストの追加 (src/Meltype.Core.Tests または src/Meltype.Tests。LM はモックしてよい)"
+    ]
+  }
+}
