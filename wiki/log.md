@@ -46,6 +46,6 @@ grep "^## \[" wiki/log.md | tail -5
 
 ## [2026-10-17] ingest | PR #9 上流のリリースによる自動更新を止める
 - 新規: [[upstream-update-stop]]
-- 更新: [[overview]], [[build-install]]
+- 更新: [[overview]], [[build-install]](実施記録に実機での確認を追記)
 - 備考: #3。判定は `src/Meltype/UpstreamUpdate.cs` に置き、上流のファイルには 1 行ずつ 4 か所差し込んだ。
   手元の .NET SDK が 9 だったので、winget で .NET 10 SDK(10.0.402)を入れてから `Meltype.Tests` を流した。
