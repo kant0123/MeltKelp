@@ -91,6 +91,8 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
   CI が赤でも GitHub 上はマージできるので、マージを止めているのは `pr-finish` の手順と、マージの直前に発火する hook
   (`.claude/hooks/check_agy_review.sh`)だけ。hook は head SHA ごとの agy レビューの記録を見て、`agy_review.py` は CI が緑の
   head にしかレビューを付けないので、Claude Code からのマージに限れば「CI 緑 + レビュー済み」が守られる。GitHub の画面からの
-  マージは素通しになる。`branch-protection.json` は、プランか公開範囲を変えたときのために正として残している。
+  マージは素通しになる。`gh pr merge` に `--repo` / `-R` が付いていれば、hook は `agy_review.py --check --repo` で
+  そのリポジトリの PR として判定する(#14。付いていないと別リポジトリの PR 番号を MeltKelp の PR として引いて止まる)。
+  別リポジトリでも判定は外さない。`branch-protection.json` は、プランか公開範囲を変えたときのために正として残している。
 - agy レビューは IME 向けのドメイン `ime`(`review/domain_invariants.json`)で回す。テンプレート既定の `general` は
   Web 向けで、変換を止めない・入力内容を出さない・UI スレッドの時間上限・上流との差分の最小化の観点を持たない。
