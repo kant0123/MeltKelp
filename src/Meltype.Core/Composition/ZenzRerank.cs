@@ -165,7 +165,8 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
         var context = preceding[(preceding.LastIndexOfAny(['\n', '\r']) + 1)..];
         foreach (var clause in clauses)
         {
-            var text = Environment.TickCount64 < deadline ? Choose(clause, Tail(context, _options.MaxContextChars), deadline) : clause.Text;
+            // 締め切りは Choose の中で、新たに採点が要るときだけ見る (控えてある採点は締め切りの後でも使う。agy レビュー)
+            var text = Choose(clause, Tail(context, _options.MaxContextChars), deadline);
             result.Add(text == clause.Text ? clause : clause with { Text = text });
             // 上限は使う直前 (Choose に渡すとき) に掛ける。ここで足していくと伸びる (imev PR #12)
             context = Tail(context + text, _options.MaxContextChars * 4);

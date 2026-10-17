@@ -159,12 +159,15 @@ internal static class ZenzRerankTests
     {
         // CompositionController.ConvertWithContext は ConvertClauses を文脈あり・なしで 2 回呼ぶ。予算を呼ぶたびに取り直すと、
         // 先頭の候補が違うので採点し直して、UI スレッドを予算の 2 倍止めていた (agy レビュー。予算 100ms・採点 120ms で 2 回・352ms)
-        var scorer = new FakeScorer { Delay = 120 };
+        var scorer = new FakeScorer { Delay = 120, Scores = (_, _, c) => c.Select(x => x == "公演" ? -0.1 : -9.0).ToArray() };
         var zenz = new ZenzRerankingConverter(new ContextSensitiveConverter(), _ => ["公園", "講演", "公演"], scorer, () => true, new ZenzRerankOptions { BudgetMs = 100 });
         var k = new CompositionTests.Keyboard(converter: zenz, moreCandidates: zenz.Candidates);
         k.Host.PrecedingText = "劇団の千秋楽の";
         k.Type("kouenn ");
         Assert.Equal(1, scorer.Calls.Count, "1 回の変換の採点は 1 つの予算の中だけ");
+        Assert.Equal("公演", k.Host.View!.Clauses![0]);
+        // 予算を過ぎた後の 2 回目の呼び出しでも、控えてある採点は使う (一覧の並びを消したままにしない。agy レビュー)
+        Assert.Equal("公演", zenz.Candidates("こうえん")[0], "予算切れでも控えてある採点で一覧を並べる");
 
         // 予算に余裕があっても、同じ候補を採点し直さない (候補ごとに控える。並びが違っても同じ)
         scorer = new FakeScorer();

@@ -183,6 +183,7 @@ push 前に確かめること:
 実例:
 
 - MeltKelp PR #26 — `src/Meltype.Core/Composition/ZenzRerank.cs ZenzRerankingConverter` — `CompositionController.ConvertWithContext()` が `ConvertClauses()` を文脈あり・なしで 2 回呼ぶのに、予算 150ms を呼ぶたびに取り直し、候補の並び(先頭が違う)をキーにした控えも外れて、UI スレッドを予算の 2 倍止めていた(予算 100ms・採点 120ms で 2 回・352ms をテストで再現・修正)
+- MeltKelp PR #26 — 同じ箇所の修正の続き — 予算を 1 回の変換で共有したら、2 回目の呼び出しの入口で締め切りを見て、控えてある採点も使わずに一覧の並びを消したままにしていた(テストで再現・修正。上限の確認は、上限のある処理の直前に置く)
 
 ### 包むラッパーが、中身の実装している追加のインターフェースを隠す
 
