@@ -42,11 +42,9 @@ if [[ $parsed == 1 ]]; then
 fi
 if [[ $parsed != 1 ]]; then
     [[ "$cmd" == *"gh pr merge"* ]] || exit 0
-    if [[ "$cmd" =~ gh[[:space:]]+pr[[:space:]]+merge[[:space:]]+#?([0-9]+) ]]; then
-        matches="M ${BASH_REMATCH[1]}"
-    else
-        matches="M"
-    fi
+    # merge より後ろをそのまま語として渡す (引用符は残るが、--repo の値は下で引用符を除いて見る)。
+    rest="${cmd#*gh pr merge}"
+    matches="M ${rest//$'\n'/ }"
 fi
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
@@ -61,7 +59,7 @@ script="$repo_root/review/agy_review.py"
 while IFS= read -r line; do
     [[ -n "$line" ]] || continue
     args="${line#M}"
-    args="${args# }"
+    args="${args#"${args%%[![:space:]]*}"}"
     if [[ "${args%% *}" =~ ^#?([0-9]+)$ ]]; then
         pr="${BASH_REMATCH[1]}"
     else
@@ -70,8 +68,32 @@ while IFS= read -r line; do
         exit 2
     fi
 
+    # `--repo` / `-R` で別のリポジトリを指すマージは、そのリポジトリの PR として判定する。
+    # 渡さないと、別リポジトリの PR 番号をこのリポジトリの PR として引いて止まる (#14)。
+    # 判定を外さない (通さない) のは、レビューを必須にする方針のため。
+    # 形は gh が受け付けるもの: `--repo x` / `--repo=x` / `-R x` / `-Rx`。
+    # マージごとの語だけを見る (別のコマンドや本文に書かれた --repo は見ない)。
+    repo_args=()
+    read -ra words <<< "$args"
+    for ((n = 0; n < ${#words[@]}; n++)); do
+        word="${words[n]}"
+        case "$word" in
+            --repo | -R) repo="${words[n + 1]-}"; n=$((n + 1)) ;;
+            --repo=*) repo="${word#--repo=}" ;;
+            -R?*) repo="${word#-R}"; repo="${repo#=}" ;;
+            *) continue ;;
+        esac
+        repo="${repo//[\"\']/}"
+        # `owner/name`、または GitHub Enterprise の `HOST/owner/name`。それ以外は python へ渡さず止める。
+        if [[ ! "$repo" =~ ^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+){1,2}$ ]]; then
+            echo "--repo の値を解釈できないため、マージを差し止めました。\`--repo <owner>/<name>\` の形で再実行してください。" >&2
+            exit 2
+        fi
+        repo_args=(--repo "$repo")
+    done
+
     # 判定できない (gh の失敗など) 場合も止める。exit 2 以外は Claude Code がブロックとして扱わない。
-    if ! python "$script" --check --pr "$pr" >&2; then
+    if ! python "$script" --check --pr "$pr" "${repo_args[@]}" >&2; then
         echo "agy レビューの確認が取れないため、マージを差し止めました (手順: agy-review スキル)。" >&2
         exit 2
     fi

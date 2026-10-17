@@ -63,9 +63,21 @@ grep "^## \[" wiki/log.md | tail -5
 - 備考: #8。判定は `src/Meltype/UpstreamReport.cs` に置き、`AppInfo` の報告の URL 3 つ・トレイの「不具合の報告・提案...」
   「直した誤判定を報告...」に 1 行ずつ差し込んだ。「不具合の報告・提案...」は当初残していたが、ユーザーの判断で消した。
 
+## [2026-10-18] ingest | PR #15 agy レビューの merge hook が --repo / -R を見て別リポジトリの PR を判定する
+- 更新: [[overview]]
+- 備考: #14。hook は PR 番号だけを cwd のリポジトリの PR として引いていた。`--repo` / `-R` を `agy_review.py --check --repo` に渡し、
+  そのリポジトリの PR のレビュー記録を見る。別リポジトリでも判定は外さない。`review/README.md` にも説明を足した。
+  マージしないコマンドの文字列に反応する件は #6 のまま(未対応)。テンプレート側の hook も同じ作り。
+
+## [2026-10-18] ingest | PR #17 クリップボードのテストが時々落ちるのを直す
+- 更新: [[build-install]]
+- 備考: #13。上流のテスト(`WindowsTests.cs`)の待ち方だけを変えた。落ちる頻度と原因(`cbdhsvc` が掴む・`Thread.Sleep` で止まる)は
+  [[build-install]] の落とし穴に書いた。
+
 ## [2026-10-18] ingest | PR #16 merge hook が引数の中の文字列に反応しないようにする
 - 更新: [[overview]], [[recurring-review-findings]]
 - 備考: #6。判定を「コマンド文字列に含まれるか」から「実行されるコマンドか」に変えた(`.claude/hooks/command_match.mjs`)。
   `check_agy_review.sh` と `check_wiki_updated.sh` が使う。解釈に失敗したときは従来の部分一致に戻す(フェイルクローズ)。
   上流 Meltype には無い MeltKelp 側の仕組みなので、取り込みで衝突する心配は無い。テンプレート側にも同じ作りがある。
+  #14 の `--repo` / `-R` は、全文の正規表現ではなくマージごとの語から取るようにした。
   agy レビューの指摘(CRLF のヒアドキュメントで終端を見失い素通しになる)を再現して直した。[[recurring-review-findings]] に実例を足した。

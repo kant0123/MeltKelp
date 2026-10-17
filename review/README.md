@@ -200,6 +200,8 @@ CRITICAL が未確認のままならマージしない(評価の `[CRITICAL] ...
 - push すれば head が変わるので、**修正後の再レビューを忘れる余地が無い。**
 - ローカルのファイルと違い worktree を消しても残り、人間も PR 上で経緯を追える。
 - merge hook は `python review/agy_review.py --check` でこのマーカーを見るだけで済む。
+  `gh pr merge --repo <owner/name>` / `-R` で別のリポジトリを指すマージは、hook が `--check --pr <番号> --repo <owner/name>` で
+  そのリポジトリの PR のマーカーを見る(渡さないと cwd のリポジトリの同じ番号の PR を引いてしまう)。
 
 マーカーは誰でも書けるので、改ざんを防ぐ仕組みではない。**手順の飛ばし忘れを止めるための仕組み。**
 

@@ -136,8 +136,8 @@ def gh(*args, timeout=120):
     return proc.stdout
 
 
-def pr_info(pr):
-    args = ["pr", "view"] + ([str(pr)] if pr else []) + ["--json", "number,headRefOid,state"]
+def pr_info(pr, repo=None):
+    args = ["pr", "view"] + ([str(pr)] if pr else []) + (["--repo", repo] if repo else []) + ["--json", "number,headRefOid,state"]
     return json.loads(gh(*args))
 
 
@@ -164,9 +164,16 @@ def ci_state(pr):
     return True, f"{len(checks)} 件すべて成功"
 
 
-def pr_comments(pr):
-    out = gh("api", "--paginate", f"repos/{{owner}}/{{repo}}/issues/{pr}/comments", "--jq", ".[].body")
-    return out
+def pr_comments(pr, repo=None):
+    """PR のコメント本文。repo は `owner/name`、または GitHub Enterprise の `HOST/owner/name`。省略時は cwd のリポジトリ。"""
+    path, host_args = "repos/{owner}/{repo}", []
+    if repo:
+        parts = repo.split("/")
+        if len(parts) == 3:
+            host_args = ["--hostname", parts[0]]
+            parts = parts[1:]
+        path = "repos/" + "/".join(parts)
+    return gh("api", *host_args, "--paginate", f"{path}/issues/{pr}/comments", "--jq", ".[].body")
 
 
 # ---------------------------------------------------------------------------
@@ -807,8 +814,8 @@ def has_unverified_critical(bodies):
 
 
 def cmd_check(args):
-    info = pr_info(args.pr)
-    ok, reason = check_merge(pr_comments(info["number"]), info["headRefOid"])
+    info = pr_info(args.pr, args.repo)
+    ok, reason = check_merge(pr_comments(info["number"], args.repo), info["headRefOid"])
     print(f"PR #{info['number']}: {reason}", file=sys.stdout if ok else sys.stderr)
     return 0 if ok else 2
 
@@ -818,6 +825,7 @@ def main():
         stream.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--pr", type=int, help="PR 番号。省略時は現在のブランチの PR")
+    p.add_argument("--repo", help="--check で cwd 以外のリポジトリ (`owner/name`) の PR を判定する (merge hook が `--repo` / `-R` から渡す)")
     mode = p.add_mutually_exclusive_group()
     mode.add_argument("--triage", metavar="FILE", help="差し戻しに対する評価 (Markdown) を PR に記録する")
     mode.add_argument("--check", action="store_true", help="マージしてよいかを判定する (merge hook 用)")
