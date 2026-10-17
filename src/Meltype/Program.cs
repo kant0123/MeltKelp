@@ -53,7 +53,7 @@ internal static class Program
         // OutputType=Exe なので cmd がプロセス終了まで待ち、標準出力がプロンプトの前に出る。
         if (args.FirstOrDefault() == "--version")
         {
-            Console.WriteLine($"Meltype {AppInfo.Version}");
+            Console.WriteLine(Config.MeltKelpInfo.Title(AppInfo.Version)); // MeltKelp: 上流の版と MeltKelp の版の両方を出す
             return 0;
         }
         // Meltype.exe --selftest [結果ファイル]: キーボードフックを掛けずに、主な機能が動くかだけを確かめる。
