@@ -152,8 +152,10 @@ gh api --method PUT repos/kant0123/MeltKelp/branches/main/protection \
 | `required_pull_request_reviews` | `null` | **1 人開発では設定してはいけない。** 自分の PR は自分で承認できず、誰もマージできなくなる |
 | `enforce_admins` | `false` | 障害時に管理者が手で復旧する逃げ道を残す |
 
-**private リポジトリのブランチ保護は GitHub の有料プラン(Pro 以上)が要る。** 無料プランでは上の API が 403 を返し、
-保護が掛からない。その場合マージを止めるのは hook と手順だけになる(`wiki/overview.md`「運用」)。
+**MeltKelp ではブランチ保護を掛けていない(2026-10-17 の判断。#5)。** private リポジトリのブランチ保護は GitHub の
+有料プラン(Pro 以上)が要り、無料プランでは上の API が 403 を返す。Pro にも public にもせず、マージを止めるのは
+`pr-finish` の手順と下の hook だけにする運用を選んだ(`wiki/overview.md`「運用」)。上のコマンドと
+`branch-protection.json` は、プランか公開範囲を変えたときのために残している。
 
 agy レビューはローカルで agy を動かすため CI のチェックにはならず、ブランチ保護では強制できない。
 代わりに [.claude/hooks/check_agy_review.sh](../.claude/hooks/check_agy_review.sh) が
