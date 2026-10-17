@@ -17,12 +17,20 @@ namespace Meltype.Composition;
 /// ランタイム (llama.dll・ggml*.dll・モデル) は %LOCALAPPDATA%\Meltype\zenz に置く (scripts/Install-ZenzRuntime.ps1)。
 /// llama.dll の構造体 (llama_model_params など) は版ごとに形が変わり、合わない DLL を呼ぶと Meltype.exe ごと落ちるので、
 /// 中身を確かめた b4846 の llama.dll (SHA-256 が一致するもの) しか読み込まない。無い・合わない・読み込めなければ採点しない (フェイルオープン)。
-/// 読み込みは別スレッド。採点は UI スレッドから呼ばれ、deadline を過ぎると llama_decode を打ち切る (abort callback)。
+/// Vulkan 版を置いてあり GPU が見つかれば、モデルを全部 GPU に載せる (見つからない・載せられなければ CPU)。
+/// 読み込みは別スレッド。採点は UI スレッドから呼ばれ、deadline を過ぎると llama_decode を打ち切る (abort callback。CPU のときだけ効く)。
 /// </summary>
 public sealed unsafe class LlamaZenzScorer : IConversionScorer
 {
-    /// <summary>azooKey/llama.cpp b4846 の llama-b4846-bin-win-avx-x64.zip の llama.dll。</summary>
-    internal const string LlamaSha256 = "4c455a39dd04d8fcf0bbd068fa41f45ed0ea02e2260ceeba10acea64615d5e67";
+    /// <summary>
+    /// 読み込んでよい llama.dll (SHA-256 → 配布物)。どちらも azooKey/llama.cpp b4846 で、同じコミットなので構造体の形も同じ。
+    /// avx は llama-b4846-bin-win-avx-x64.zip (CPU)、vulkan は llama-b4846-bin-win-vulkan-x64.zip (GPU で採点する。MeltKelp #29)。
+    /// </summary>
+    internal static readonly IReadOnlyDictionary<string, string> LlamaBuilds = new Dictionary<string, string>
+    {
+        ["4c455a39dd04d8fcf0bbd068fa41f45ed0ea02e2260ceeba10acea64615d5e67"] = "avx",
+        ["9463fe42037b98038b298fce936d0e86a827f193eac617c6fff3aa4aad316f11"] = "vulkan",
+    };
     internal const string ModelFile = "ggml-model-Q5_K_M.gguf";
 
     private static readonly string InputTag = ((char)0xEE00).ToString();
@@ -117,22 +125,26 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
         try
         {
             var llama = Path.Combine(_directory, "llama.dll");
+            string? build;
             using (var stream = File.OpenRead(llama))
             {
-                if (!Convert.ToHexStringLower(SHA256.HashData(stream)).Equals(LlamaSha256, StringComparison.Ordinal))
+                if (!LlamaBuilds.TryGetValue(Convert.ToHexStringLower(SHA256.HashData(stream)), out build))
                 {
                     Diagnostics.Log.Warn("zenz: llama.dll が想定の版 (azooKey/llama.cpp b4846) ではないので読み込みません");
                     return;
                 }
             }
-            // llama.dll が依存する ggml*.dll を先に同じ場所から読み込んでおく (既定の検索順で別の場所の DLL を拾わない)
-            foreach (var name in new[] { "ggml-base.dll", "ggml.dll", "ggml-cpu.dll", "ggml-rpc.dll" })
+            // llama.dll が依存する ggml*.dll を先に同じ場所から読み込んでおく (既定の検索順で別の場所の DLL を拾わない)。
+            // Vulkan 版の ggml.dll は ggml-vulkan.dll に依存する (CPU 版には無い)
+            var backends = build == "vulkan" ? new[] { "ggml-base.dll", "ggml-cpu.dll", "ggml-vulkan.dll", "ggml-rpc.dll", "ggml.dll" } : ["ggml-base.dll", "ggml.dll", "ggml-cpu.dll", "ggml-rpc.dll"];
+            foreach (var name in backends)
             {
                 var path = Path.Combine(_directory, name);
                 if (File.Exists(path)) NativeLibrary.Load(path);
             }
             var handle = NativeLibrary.Load(llama);
-            if (NativeLibrary.TryGetExport(NativeLibrary.Load(Path.Combine(_directory, "ggml.dll")), "ggml_backend_load_all_from_path", out var loadAll))
+            var ggml = NativeLibrary.Load(Path.Combine(_directory, "ggml.dll"));
+            if (NativeLibrary.TryGetExport(ggml, "ggml_backend_load_all_from_path", out var loadAll))
             {
                 var dir = Utf8(_directory);
                 fixed (byte* p = dir) ((delegate* unmanaged[Cdecl]<byte*, void>)loadAll)(p);
@@ -156,10 +168,19 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
             ((delegate* unmanaged[Cdecl]<void>)Export(handle, "llama_backend_init"))();
 
             var modelParams = _modelDefaultParams();
-            modelParams.NGpuLayers = 0;
+            var gpu = build == "vulkan" && HasGpu(ggml, NativeLibrary.Load(Path.Combine(_directory, "ggml-base.dll")));
+            modelParams.NGpuLayers = gpu ? 999 : 0;
             modelParams.UseMmap = 1;
             var modelPath = Utf8(Path.Combine(_directory, ModelFile));
             fixed (byte* p = modelPath) _model = _modelLoad(p, modelParams);
+            if (_model == IntPtr.Zero && gpu)
+            {
+                // VRAM が足りないなどで GPU に載せられなければ CPU で読み込み直す
+                Diagnostics.Log.Warn("zenz: モデルを GPU に載せられなかったので CPU で読み込みます");
+                gpu = false;
+                modelParams.NGpuLayers = 0;
+                fixed (byte* p = modelPath) _model = _modelLoad(p, modelParams);
+            }
             if (_model == IntPtr.Zero)
             {
                 Diagnostics.Log.Warn("zenz: モデルを読み込めませんでした");
@@ -181,15 +202,59 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
             _batch = _batchInit(Batch, 0, 1);
             _bos = _vocabAddBos(_vocab) != 0 ? [_vocabBos(_vocab)] : [];
             _setAbort(_context, &Abort, IntPtr.Zero);
+            if (gpu) WarmUpGpu();
             // 最初の decode は計算用のバッファを確保するので遅い。UI スレッドで採点する前に 1 回済ませておく
             var warm = Rank("テスト", "てすと", ["テスト", "手須藤"], Environment.TickCount64 + 10_000);
             _ready = true;
-            Diagnostics.Log.Info($"zenz: 読み込みました (語彙 {_vocabSize}・スレッド {contextParams.NThreads}・{watch.ElapsedMilliseconds} ms・試しの採点 {(warm is null ? "失敗" : "成功")})");
+            Diagnostics.Log.Info($"zenz: 読み込みました ({(gpu ? "GPU (Vulkan)" : $"CPU・スレッド {contextParams.NThreads}")}・語彙 {_vocabSize}・{watch.ElapsedMilliseconds} ms・試しの採点 {(warm is null ? "失敗" : "成功")})");
         }
         finally
         {
             _loadFinished = true;
         }
+    }
+
+    /// <summary>
+    /// GPU では、一度に処理するトークンの数ごとに、初めての形のときだけシェーダーの準備で 200ms 前後かかる (実測。ドライバーが
+    /// 覚えるので次に起動したときは速い)。GPU では abort callback が効かず UI スレッドを止めてしまうので、出うる数を先に通しておく。
+    /// </summary>
+    private void WarmUpGpu()
+    {
+        if (Tokenize("テスト") is not { Length: > 0 } t) return;
+        Volatile.Write(ref s_deadline, Environment.TickCount64 + 30_000);
+        var sizes = Enumerable.Range(1, 16).Concat([24, 32, 48, 64, 96, 128, 192, Batch]);
+        foreach (var n in sizes)
+        {
+            var items = Enumerable.Range(0, n).Select(i => (t[0], i, 0)).ToList();
+            DecodeItems(items, 0, n);
+            _kvClear(_context);
+        }
+        Reset();
+    }
+
+    /// <summary>ggml のバックエンドに GPU の装置があるか (Vulkan 版でも、ドライバーが Vulkan に対応していなければ無い)。</summary>
+    private static bool HasGpu(params IntPtr[] libraries)
+    {
+        // 装置の一覧は ggml.dll、装置の種類は ggml-base.dll にある
+        IntPtr Find(string name)
+        {
+            foreach (var library in libraries)
+            {
+                if (NativeLibrary.TryGetExport(library, name, out var address)) return address;
+            }
+            return IntPtr.Zero;
+        }
+        var count = Find("ggml_backend_dev_count");
+        var get = Find("ggml_backend_dev_get");
+        var type = Find("ggml_backend_dev_type");
+        if (count == IntPtr.Zero || get == IntPtr.Zero || type == IntPtr.Zero) return false;
+        var n = ((delegate* unmanaged[Cdecl]<nuint>)count)();
+        for (nuint i = 0; i < n; i++)
+        {
+            // enum ggml_backend_dev_type: 0 = CPU・1 = GPU・2 = ACCEL
+            if (((delegate* unmanaged[Cdecl]<IntPtr, int>)type)(((delegate* unmanaged[Cdecl]<nuint, IntPtr>)get)(i)) == 1) return true;
+        }
+        return false;
     }
 
     private static IntPtr Export(IntPtr handle, string name) =>

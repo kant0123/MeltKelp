@@ -391,6 +391,20 @@ internal static class ZenzRerankTests
     }
 
     [Test]
+    public static void InstallScript_PlacesOnlyLlamaBuildsTheScorerLoads()
+    {
+        // MeltKelp #29: Install-ZenzRuntime.ps1 が置く llama.dll (CPU 版・Vulkan 版) は、どちらも LlamaZenzScorer が読み込む版。
+        // 片方だけ直すと、スクリプトは通るのに Meltype が「想定の版ではない」と読み込まなくなる
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null && !File.Exists(Path.Combine(dir, "scripts", "Install-ZenzRuntime.ps1"))) dir = Path.GetDirectoryName(dir);
+        Assert.True(dir is not null, "scripts/Install-ZenzRuntime.ps1 が見つからない");
+        var hashes = System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(Path.Combine(dir!, "scripts", "Install-ZenzRuntime.ps1")), @"'llama\.dll'\s*=\s*'([0-9a-f]{64})'")
+            .Select(m => m.Groups[1].Value).ToArray();
+        Assert.Equal(2, hashes.Length, "CPU 版と Vulkan 版の 2 つ");
+        Assert.Equal(string.Join(",", LlamaZenzScorer.LlamaBuilds.Keys.Order()), string.Join(",", hashes.Order()), "スクリプトとコードの llama.dll のハッシュ");
+    }
+
+    [Test]
     public static void Tail_DoesNotSplitSurrogatePair()
     {
         Assert.Equal("b", ZenzRerankingConverter.Tail("a😊b", 2), "サロゲートペアの片割れを残さない");
