@@ -421,6 +421,7 @@ internal static class ZenzRerankTests
             Directory.CreateDirectory(root);
             Assert.Equal(null, Pick(true), "何も無い");
             Assert.True(!new LlamaZenzScorer(root).IsInstalled, "モデルも DLL も無い");
+            Assert.Equal("未導入", new LlamaZenzScorer(root).Describe().State, "トレイの表示: 未導入"); // MeltKelp #35
 
             Place("vulkan");
             Assert.Equal("vulkan", Pick(true), "GPU は Vulkan 版");
@@ -428,6 +429,7 @@ internal static class ZenzRerankTests
             Assert.True(!new LlamaZenzScorer(root).IsInstalled, "モデルが無い");
             File.WriteAllText(Path.Combine(root, LlamaZenzScorer.ModelFile), "");
             Assert.True(new LlamaZenzScorer(root, () => true).IsInstalled, "GPU: Vulkan 版とモデルがある");
+            Assert.Equal("待機中", new LlamaZenzScorer(root, () => true).Describe().State, "トレイの表示: 置いてあるが読み込み前");
             Assert.True(!new LlamaZenzScorer(root, () => false).IsInstalled, "CPU: CPU 版が無い");
 
             Place("cpu");

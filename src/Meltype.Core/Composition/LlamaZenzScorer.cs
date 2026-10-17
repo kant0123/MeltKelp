@@ -90,6 +90,20 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
 
     public bool IsReady => _ready;
 
+    /// <summary>
+    /// トレイのメニューに出す状態 (MeltKelp #35)。Place は読み込めたときだけ (モデルを GPU の VRAM に載せたか、メモリ (CPU) か)。
+    /// 読み込んだ後は、設定 (ZenzUseGpu) を変えても起動し直すまで変わらない。
+    /// </summary>
+    public (string State, string? Place) Describe()
+    {
+        if (_ready) return ("有効", _onGpu ? "VRAM (GPU・Vulkan)" : "メモリ (CPU)");
+        if (!IsInstalled) return ("未導入", null);
+        if (_loadFinished) return ("読み込めませんでした", null);
+        return (_loading == 0 ? "待機中" : "読み込み中", null);
+    }
+
+    private volatile bool _onGpu;
+
     /// <summary>ランタイムの一式が置いてあるか。</summary>
     public bool IsInstalled => File.Exists(Path.Combine(_directory, ModelFile)) && LibraryDirectory(_directory, _useGpu()) is not null;
 
@@ -238,6 +252,7 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
             if (gpu) WarmUpGpu();
             // 最初の decode は計算用のバッファを確保するので遅い。UI スレッドで採点する前に 1 回済ませておく
             var warm = Rank("テスト", "てすと", ["テスト", "手須藤"], Environment.TickCount64 + 10_000);
+            _onGpu = gpu;
             _ready = true;
             Diagnostics.Log.Info($"zenz: 読み込みました ({(gpu ? "GPU (Vulkan)" : $"CPU・スレッド {contextParams.NThreads}")}・語彙 {_vocabSize}・{watch.ElapsedMilliseconds} ms・試しの採点 {(warm is null ? "失敗" : "成功")})");
         }
