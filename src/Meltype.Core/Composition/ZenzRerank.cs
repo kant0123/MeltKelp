@@ -108,7 +108,10 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
     {
         var clauses = inner.ConvertClauses(hiragana, context);
         ScoredClauses = 0;
-        if (clauses is null || clauses.Count == 0 || !enabled()) return clauses;
+        if (clauses is null || clauses.Count == 0) return clauses;
+        // 前の変換で採点した順は、今回採点し直せたときだけ使う (文脈が空・時間切れ・失敗で、前の文脈の順を一覧に残さない)
+        foreach (var clause in clauses) _ranked.Remove(clause.Reading);
+        if (!enabled()) return clauses;
         try
         {
             if (!scorer.IsReady)

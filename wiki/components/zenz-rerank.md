@@ -2,7 +2,7 @@
 type: component
 summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定
 updated: 2026-10-18
-related: [context-rerank-lessons, engine-base-choice, build-install, overview]
+related: [context-rerank-lessons, engine-base-choice, build-install, overview, recurring-review-findings]
 ---
 
 # zenz の並べ替え
@@ -29,6 +29,8 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview]
 - **選び直すのは `ConvertClauses()` の各文節の `Text`。** 最初の Space で出る候補はこれで決まり、`Candidates()`(`MoreCandidates`)は
   `CompositionController.Expand()` が先頭を固定したまま後ろに足すだけなので、`Candidates()` だけ並べ替えても先頭は変わらない。
   `Candidates()` は、同じ読みを直前に採点した順に、採点した候補どうしの位置の中で並べ替えるだけ(採点し直さない)。
+  その順は変換のたびに文節の読みごとに消してから採点し直す。採点できなかった変換(文脈が空・時間切れ・失敗)の後に、
+  前の文脈の順で一覧が並ばないようにするため(agy レビューの指摘。[[recurring-review-findings]])。
 - **文脈は zenz 用に別に作る。** 上流の文脈(`ConversionContext()`: 同じ文の日本語・最大 10 文字)は使わず、`_precedingText`
   (キャレットの前の確定済みの文字。UI Automation と Meltype IME はどちらも 20 文字までしか読まない)の**最後の改行より後ろ**に、同じ変換の前の文節
   (選び直した後のもの)を足し、**足した後に**末尾 20 文字に切る(`ZenzRerankOptions.MaxContextChars`)。

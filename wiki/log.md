@@ -94,10 +94,11 @@ grep "^## \[" wiki/log.md | tail -5
 
 ## [2026-10-18] ingest | PR #26 zenz で漢字変換の候補を文脈つきに並べ替える
 - 新規: [[zenz-rerank]]
-- 更新: [[context-rerank-lessons]], [[overview]], [[build-install]], [[engine-base-choice]]
+- 更新: [[context-rerank-lessons]], [[overview]], [[build-install]], [[engine-base-choice]], [[recurring-review-findings]]
 - 備考: #2。`HybridConverter` を `ZenzRerankingConverter` で包み、imev の採点(`LlmScorer::Impl::Rank()`)を C# に移した。
   imev のプロンプトのタグが誤り(U+E200〜。正しくは U+EE00〜)で、imev #33 の「対数確率が鈍い」と、かなの候補を外した理由(写しのカタカナが勝つ)は
   これが原因だった。タグを直したうえで、かなの候補も採点に入れた(Issue の時点の「外す」から変えた)。llama.dll は b4846 のものしか読み込まない。
   英単語を挟んだ同じ入力の前の区間が文脈に入らない件は #24。
   実機の確認で 2 つ直した: モデルの読み込みを起動時に始める(最初の変換で始めると 1 回目が並べ替わらない)、文脈から前の行を外す
   (メモ帳の前の行「…講演」に引っぱられて 街の + こうえん → 公演 になった)。
+  agy レビューの指摘(採点できなかった変換の後も、↑↓ の一覧が前の文脈の順で並ぶ)をテストで再現して直し、[[recurring-review-findings]] に種類を足した。

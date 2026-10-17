@@ -238,6 +238,45 @@ internal static class ZenzRerankTests
     }
 
     [Test]
+    public static void Rerank_CandidatesForgetRankingWhenNotScored()
+    {
+        // 同じ読みを次の変換で採点しなかったら (文脈が空・時間切れ・失敗・読み込み前・例外)、前の文脈の順で一覧を並べ替えない (agy レビュー)
+        var scorer = new FakeScorer { Scores = (context, _, c) => context.Contains("千秋楽") ? c.Select(x => x == "公演" ? -0.1 : -9.0).ToArray() : null };
+        var converter = Create(new FixedConverter(C("こうえん", "公園")), scorer);
+        void Ranked()
+        {
+            converter.SetPrecedingText("劇団の千秋楽の");
+            Assert.Equal("公演", converter.ConvertClauses("こうえん")!.Single().Text);
+            Assert.Equal("公演", converter.Candidates("こうえん")[0]);
+        }
+
+        Ranked();
+        converter.SetPrecedingText(null);
+        Assert.Equal("公園", converter.ConvertClauses("こうえん")!.Single().Text);
+        Assert.Equal("公園", converter.Candidates("こうえん")[0], "文脈が空");
+
+        Ranked();
+        converter.SetPrecedingText("それで");
+        Assert.Equal("公園", converter.ConvertClauses("こうえん")!.Single().Text);
+        Assert.Equal("公園", converter.Candidates("こうえん")[0], "採点の失敗");
+
+        Ranked();
+        scorer.Ready = false;
+        converter.SetPrecedingText("劇団の千秋楽の");
+        Assert.Equal("公園", converter.ConvertClauses("こうえん")!.Single().Text);
+        Assert.Equal("公園", converter.Candidates("こうえん")[0], "読み込み前");
+        scorer.Ready = true;
+
+        Ranked();
+        var scores = scorer.Scores;
+        scorer.Scores = (_, _, _) => throw new InvalidOperationException();
+        converter.SetPrecedingText("劇団の千秋楽を見た");
+        Assert.Equal("公園", converter.ConvertClauses("こうえん")!.Single().Text);
+        Assert.Equal("公園", converter.Candidates("こうえん")[0], "例外");
+        scorer.Scores = scores;
+    }
+
+    [Test]
     public static void Rerank_CandidatesUnchangedWhenListChanged()
     {
         // 採点した後に一覧が変わったら (Mozc の学習・変換エンジンの切り替え) 並べ替えない。変換できなければ null のまま
