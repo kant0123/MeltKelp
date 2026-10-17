@@ -83,7 +83,7 @@ internal sealed class ReportDialog : Form
         };
 
         // GitHub のアカウントがある人向け (返事や修正の通知が届く)。公開 (1.0.0) まではリポジトリが非公開なので出さない。
-        if (AppInfo.IsPublicRelease && UpstreamReport.Allowed) reportBox.Controls.Add(GitHubLinks()); // MeltKelp: 上流の GitHub のリンクを出さない (MeltKelp #8)
+        if (AppInfo.IsPublicRelease) reportBox.Controls.Add(GitHubLinks());
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Padding = new Padding(6), Margin = new Padding(0, 4, 0, 0) };
         buttons.Controls.AddRange(close, open, copy, copied);
         reportBox.Controls.Add(buttons);

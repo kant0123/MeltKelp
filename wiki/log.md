@@ -53,5 +53,5 @@ grep "^## \[" wiki/log.md | tail -5
 ## [2026-10-17] ingest | PR #12 報告の導線を上流に向けない
 - 新規: [[upstream-report-stop]]
 - 更新: [[overview]], [[upstream-update-stop]]
-- 備考: #8。判定は `src/Meltype/UpstreamReport.cs` に置き、`AppInfo` の報告の URL 3 つ・トレイの「直した誤判定を報告...」・
-  `ReportDialog` の GitHub のリンクに 1 行ずつ差し込んだ。
+- 備考: #8。判定は `src/Meltype/UpstreamReport.cs` に置き、`AppInfo` の報告の URL 3 つ・トレイの「不具合の報告・提案...」
+  「直した誤判定を報告...」に 1 行ずつ差し込んだ。「不具合の報告・提案...」は当初残していたが、ユーザーの判断で消した。
