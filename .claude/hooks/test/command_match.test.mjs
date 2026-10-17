@@ -184,6 +184,16 @@ describe('check_agy_review.sh', () => {
     assert.equal(runHook('check_agy_review.sh', 'gh pr merge 5 && gh pr merge', ng).status, 2);
   });
 
+  test('--repo は、そのマージのコマンドの語だけから取る(別のコマンドの --repo は見ない)', () => {
+    const root = makeReviewRepo('agy-repo-scope', 0);
+    assert.equal(runHook('check_agy_review.sh', 'gh issue create --repo o/r --title t && gh pr merge 5 --merge', root).status, 0);
+    assert.equal(calls(root), '--check --pr 5\n');
+
+    const both = makeReviewRepo('agy-repo-each', 0);
+    assert.equal(runHook('check_agy_review.sh', 'gh pr merge 5 -R a/b && gh pr merge 6', both).status, 0);
+    assert.equal(calls(both), '--check --pr 5 --repo a/b\n--check --pr 6\n');
+  });
+
   test('入力が JSON でなければ、従来の部分一致で止める(フェイルクローズ)', () => {
     const root = makeReviewRepo('agy-raw', 0);
     const r = spawnSync('bash', [join(HOOKS, 'check_agy_review.sh')], { input: 'gh pr merge --merge', encoding: 'utf8', cwd: root });
