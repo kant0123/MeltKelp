@@ -63,7 +63,7 @@ grep "^## \[" wiki/log.md | tail -5
 - 備考: #8。判定は `src/Meltype/UpstreamReport.cs` に置き、`AppInfo` の報告の URL 3 つ・トレイの「不具合の報告・提案...」
   「直した誤判定を報告...」に 1 行ずつ差し込んだ。「不具合の報告・提案...」は当初残していたが、ユーザーの判断で消した。
 
-## [2026-10-18] ingest | PR #15 merge hook が引数の中の文字列に反応しないようにする
+## [2026-10-18] ingest | PR #16 merge hook が引数の中の文字列に反応しないようにする
 - 更新: [[overview]]
 - 備考: #6。判定を「コマンド文字列に含まれるか」から「実行されるコマンドか」に変えた(`.claude/hooks/command_match.mjs`)。
   `check_agy_review.sh` と `check_wiki_updated.sh` が使う。解釈に失敗したときは従来の部分一致に戻す(フェイルクローズ)。
