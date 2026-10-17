@@ -92,7 +92,7 @@ grep "^## \[" wiki/log.md | tail -5
   #14 の `--repo` / `-R` は、全文の正規表現ではなくマージごとの語から取るようにした。
   agy レビューの指摘(CRLF のヒアドキュメントで終端を見失い素通しになる)を再現して直した。[[recurring-review-findings]] に実例を足した。
 
-## [2026-10-18] ingest | PR #<番号> zenz で漢字変換の候補を文脈つきに並べ替える
+## [2026-10-18] ingest | PR #26 zenz で漢字変換の候補を文脈つきに並べ替える
 - 新規: [[zenz-rerank]]
 - 更新: [[context-rerank-lessons]], [[overview]], [[build-install]], [[engine-base-choice]]
 - 備考: #2。`HybridConverter` を `ZenzRerankingConverter` で包み、imev の採点(`LlmScorer::Impl::Rank()`)を C# に移した。
