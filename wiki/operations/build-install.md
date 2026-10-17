@@ -2,7 +2,7 @@
 type: operation
 summary: MeltKelp をビルドして手元の PC に入れ直し、実機で変換を確かめる手順。ローカルドライブで完結させる理由と、Chrome で Meltype IME が動かない件(ESET と署名)
 updated: 2026-10-17
-related: [overview, engine-base-choice]
+related: [overview, engine-base-choice, upstream-update-stop]
 ---
 
 # ビルドと入れ直し・実機での確認
@@ -39,8 +39,8 @@ CI は実際のアプリでの入力を見ないので、この確認は省略�
    コピーし、Meltype IME を登録する(管理者権限の確認が出る)。公式の Meltype が入っていれば上書きする(置き換え前提)。
    開発用の `Install-Meltype.ps1` はリポジトリの中の `app-build\` から動かすので、worktree を消すと壊れる。確認には使わない。
 
-4. **自動更新が OFF か確かめる**(#3 が入るまで)。トレイのアイコン →「設定...」→「9. 更新」の「自動で更新する」。
-   ON だと上流のリリースで公式版に戻される。
+4. **上流の更新が止まっているか確かめる**(上流の取り込みの後は必ず)。トレイのアイコン →「更新」に「自動で更新する」が無く、
+   「今すぐ更新を確認」を押すと止めている旨が出ること。出なければ上流のリリースで公式版に戻される([[upstream-update-stop]])。
 
 5. 実機で確かめる。**メモ帳と Chrome の両方で、2 つの動作モードの両方を試す。**
    - Meltype IME: <kbd>Win</kbd> + <kbd>Space</kbd> で「Meltype」を選ぶ。打った文字が入力欄に下線付きで入り、候補が入力位置の下に出る

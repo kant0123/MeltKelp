@@ -136,6 +136,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var updates = new ToolStripMenuItem("更新");
         _autoUpdateItem = new ToolStripMenuItem("自動で更新する", null, (_, _) => ToggleAutoUpdate());
         updates.DropDownItems.Add(_autoUpdateItem);
+        _autoUpdateItem.Visible = UpstreamUpdate.Allowed; // MeltKelp: 上流の更新を止めているので出さない (MeltKelp #3)
         updates.DropDownItems.Add("今すぐ更新を確認", null, (_, _) => CheckForUpdate());
         _updateItem = new ToolStripMenuItem("", null, (_, _) => ApplyUpdate()) { Visible = false };
         updates.DropDownItems.Add(_updateItem);

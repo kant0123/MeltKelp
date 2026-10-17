@@ -2,7 +2,7 @@
 type: concept
 summary: MeltKelp とは何か・なぜ独立リポジトリのフォークで、上流に出さず、公式を置き換える前提なのか。各ページへの入口
 updated: 2026-10-17
-related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings]
+related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings, upstream-update-stop]
 ---
 
 # MeltKelp 全体像
@@ -14,7 +14,7 @@ related: [engine-base-choice, context-rerank-lessons, build-install, recurring-r
 
 MeltKelp(とろろ昆布)は、Windows 向けの日本語入力 Meltype(yksr-melt/Meltype、GPL-3.0)の個人用フォーク。
 Meltype の強みである英語と日本語の自動判定をそのまま使い、漢字変換の候補を小型の言語モデル zenz で
-文脈つきに並べ替えることを目指す(#2。2026-10-17 時点では未実装で、中身は上流の Meltype のまま)。
+文脈つきに並べ替えることを目指す(#2。2026-10-17 時点では未実装で、中身は上流の Meltype に、上流の自動更新を止める変更 [[upstream-update-stop]] を足しただけ)。
 
 前身は imev(kant0123/imev。Mozc 本家に zenz の文脈リランカーを載せた個人用 IME)。imev の土台を Meltype に移すと
 決めて立ち上げた。理由は [[engine-base-choice]]、imev で得た並べ替えの知見は [[context-rerank-lessons]]。
@@ -49,9 +49,10 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
   おけば、上流が署名した DLL に差し替えるだけで済む可能性が残る。
 - **上流との差分を最小にする。** 機能は新しいファイルで足し、上流のファイルは差し込み口の数行だけ変える。
   上流のワークフローもファイルを消さずに無効にしている(下の「運用」)。
-- **上流のリリースによる自動更新を止める必要がある。** 置き換え前提なので、上流の `Updater.cs` が公式版で
-  MeltKelp を上書きしてしまう(上流の版 1.2.1 をそのまま持つので「公開版」と判定される)。実装は #3。
-  それまでは入れた MeltKelp の設定で自動更新を OFF にしておく。
+- **上流のリリースによる自動更新を止めている。** 置き換え前提なので、上流の `Updater.cs` のままだと公式版で
+  MeltKelp が上書きされる(上流の版 1.2.1 をそのまま持つので「公開版」と判定される)。確認・ダウンロード・適用・
+  トレイからの手動の更新のすべてを、設定の「自動で更新する」に関わらず止めた(#3)。仕組みと、上流の取り込みで
+  `Updater.cs` が衝突したときの直し方は [[upstream-update-stop]]。
 
 ## 触る前に知っておくこと
 
