@@ -81,9 +81,12 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
 - **ブランチ保護**: 正は `.github/branch-protection.json`(必須チェックは `checks` と `core-tests`)。保護設定は
   GitHub 側にあり、リポジトリのファイルからは見えない。**`test.yml` のジョブ名を変えたら、このファイルと保護設定の
   両方を直す**(`test.yml` の `checks` が一致を検査する)。
-  **2026-10-17 時点では保護は掛かっていない。** 適用を試すと「Upgrade to GitHub Pro or make this repository public」で
-  403 になった(private で無料プランのため)。CI が赤でも GitHub 上はマージできるので、マージを止めているのは
-  `pr-finish` の手順と `gh pr merge` の hook(agy レビューの記録の確認)だけ。GitHub Pro にするか public にしたら
-  `docs/development_workflow.md` のコマンドで適用する。
+  **保護は掛けない運用にしている(2026-10-17、ユーザーの判断。#5)。** 適用を試すと「Upgrade to GitHub Pro or make this
+  repository public」で 403 になった(private で無料プランのため)。GitHub Pro にする・public にする、のどちらも選ばず、
+  private の無料プランのまま保護なしで運用する。**保護の適用を試し直したり、同じ判断を聞き直したりしない。**
+  CI が赤でも GitHub 上はマージできるので、マージを止めているのは `pr-finish` の手順と、マージの直前に発火する hook
+  (`.claude/hooks/check_agy_review.sh`)だけ。hook は head SHA ごとの agy レビューの記録を見て、`agy_review.py` は CI が緑の
+  head にしかレビューを付けないので、Claude Code からのマージに限れば「CI 緑 + レビュー済み」が守られる。GitHub の画面からの
+  マージは素通しになる。`branch-protection.json` は、プランか公開範囲を変えたときのために正として残している。
 - agy レビューは IME 向けのドメイン `ime`(`review/domain_invariants.json`)で回す。テンプレート既定の `general` は
   Web 向けで、変換を止めない・入力内容を出さない・UI スレッドの時間上限・上流との差分の最小化の観点を持たない。
