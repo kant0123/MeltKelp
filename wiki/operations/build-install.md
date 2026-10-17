@@ -1,7 +1,7 @@
 ---
 type: operation
 summary: MeltKelp をビルドして手元の PC に入れ直し、実機で変換を確かめる手順。ローカルドライブで完結させる理由と、Chrome で Meltype IME が動かない件(ESET と署名)
-updated: 2026-10-17
+updated: 2026-10-18
 related: [overview, engine-base-choice, upstream-update-stop]
 ---
 
@@ -83,6 +83,24 @@ CI は実際のアプリでの入力を見ないので、この確認は省略�
   済む可能性がある(未検証。今の上流のリリースは署名していない)。`Build-Package.ps1` は毎回 DLL を自前ビルドするので、
   差し替えるならその後で行う。
 - Meltype キーボードは TSF の DLL を使わないので、Chrome でも動くはず(未確認)。
+
+### `Meltype.Tests` のクリップボードのテストが時々落ちる
+
+#13。`WindowsTests.CopyClipboard_KeepsContentAfterClipboardChanges` と `ClipboardSequence_ChangesOnlyWhenContentChanges`
+(`src/Meltype.Tests/WindowsTests.cs`)が、変更と無関係に「要求されたクリップボード操作に成功しませんでした」(`0x800401D0`、
+`CLIPBRD_E_CANT_OPEN`)で落ちる。
+
+- **手元(Windows 11、クリップボード履歴が ON)では、前者を単独で流すと 30 回中 12 回落ちた。** 全体を流すと 1 回落ちる程度に見えるのは、
+  落ちるのが実行の一部だから。
+- **原因はクリップボード履歴のサービス(`cbdhsvc`、`svchost` の中)。** テストが入れ直すたびに読みに行く。掴んでいる時間が数秒から 20 秒以上に
+  なることがあり、上流の「500ms 間隔で 5 回」(約 2 秒)では足りなかった。掴んでいたプロセスは `GetOpenClipboardWindow` を 20ms 間隔で
+  引いて突き止めた(`svchost` 445 回、ほかは各 1〜6 回)。
+- **待ち方も効いた。** 待ちが `Thread.Sleep` だと STA スレッドがメッセージを処理せず、掴んだ側がこちらのデータ オブジェクトを OLE で
+  呼び出したまま返事を待つ形になり、開けない状態が 20 秒以上続いた。`WindowsTests.PumpSleep()`(`Application.DoEvents()` を回しながら待つ)に
+  替えると 40 回とも通った(落ちる試行はあるが、再試行 2 回以内で直った)。この因果は、症状の消え方と呼び出しの形からの推定で、
+  `cbdhsvc` 側の動きは見ていない。
+- 再試行は回数(5 回)ではなく時間(20 秒)で区切っている。クリップボード履歴を OFF にして比べることはしていない(システム設定を変えるため)。
+- 製品側(`CompositionService.RestoreClipboard`)は Windows のメッセージ ループで動くので、この待ち方の問題は受けない。
 
 ### ネットワークドライブ・UNC パスに置かない
 

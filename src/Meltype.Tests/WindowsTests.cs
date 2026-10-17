@@ -204,19 +204,34 @@ internal static class WindowsTests
     public static void CopyClipboard_KeepsContentAfterClipboardChanges()
     {
         // ほかのアプリ (クリップボードの履歴など) が同時にクリップボードを開いたり読んだりすると、入れられなかったり、
-        // テストで入れた Stream を先に読み進められて中身が 0 になったりするので、何回か試す
-        for (var attempt = 1; ; attempt++)
+        // テストで入れた Stream を先に読み進められて中身が 0 になったりするので、何回か試す。
+        // クリップボード履歴 (cbdhsvc) は入れ直すたびに読みに行き、数秒掴み続けることがある (手元で 3 割ほどの実行で出会う)。
+        // 回数ではなく時間で区切り、待つあいだもメッセージを処理する (Sleep で止まると、履歴がこちらのデータを OLE で呼び出したまま返事を待ち、開けない状態が 20 秒以上続いた)
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (true)
         {
             try
             {
                 CheckCopyClipboard();
                 return;
             }
-            catch (Exception) when (attempt < 5)
+            catch (Exception) when (DateTime.UtcNow < deadline)
             {
-                Thread.Sleep(500);
+                PumpSleep(500);
             }
         }
+    }
+
+    /// <summary>待つあいだもメッセージを処理する。クリップボードを開いている側 (履歴) が、こちらのデータ オブジェクトを OLE で呼び出して返事を待つことがある。</summary>
+    private static void PumpSleep(int milliseconds)
+    {
+        var end = DateTime.UtcNow.AddMilliseconds(milliseconds);
+        do
+        {
+            Application.DoEvents();
+            Thread.Sleep(10);
+        }
+        while (DateTime.UtcNow < end);
     }
 
     private static void CheckCopyClipboard()
@@ -256,7 +271,7 @@ internal static class WindowsTests
         static void RestoreAfterPaste()
         {
             // 入れた直後は、ほかのアプリ (クリップボードの履歴など) が開いていて読めないことがある
-            Thread.Sleep(200);
+            PumpSleep(200);
             var saved = CompositionService.CopyClipboard();
             Assert.True(saved is not null, "中身を写せた");
             Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, "貼り付けた文字"), copy: true);
@@ -268,7 +283,7 @@ internal static class WindowsTests
             for (var i = 0; i < 20; i++)
             {
                 if (read() is { Length: > 0 } value) return value;
-                Thread.Sleep(50);
+                PumpSleep(50);
             }
             return "";
         }
@@ -278,16 +293,17 @@ internal static class WindowsTests
     public static void ClipboardSequence_ChangesOnlyWhenContentChanges()
     {
         // 貼り付けのあとに番号が変わっていたら戻さない。Ctrl+V を受けたアプリやクリップボードの履歴が読んだだけで変わると、戻らなくなる
-        for (var attempt = 1; ; attempt++)
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (true)
         {
             try
             {
                 CheckClipboardSequence();
                 return;
             }
-            catch (Exception) when (attempt < 5)
+            catch (Exception) when (DateTime.UtcNow < deadline)
             {
-                Thread.Sleep(500);
+                PumpSleep(500);
             }
         }
     }

@@ -68,3 +68,8 @@ grep "^## \[" wiki/log.md | tail -5
 - 備考: #14。hook は PR 番号だけを cwd のリポジトリの PR として引いていた。`--repo` / `-R` を `agy_review.py --check --repo` に渡し、
   そのリポジトリの PR のレビュー記録を見る。別リポジトリでも判定は外さない。`review/README.md` にも説明を足した。
   マージしないコマンドの文字列に反応する件は #6 のまま(未対応)。テンプレート側の hook も同じ作り。
+
+## [2026-10-18] ingest | PR #17 クリップボードのテストが時々落ちるのを直す
+- 更新: [[build-install]]
+- 備考: #13。上流のテスト(`WindowsTests.cs`)の待ち方だけを変えた。落ちる頻度と原因(`cbdhsvc` が掴む・`Thread.Sleep` で止まる)は
+  [[build-install]] の落とし穴に書いた。
