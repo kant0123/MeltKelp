@@ -2,7 +2,7 @@
 type: concept
 summary: MeltKelp とは何か・なぜ独立リポジトリのフォークで、上流に出さず、公式を置き換える前提なのか。各ページへの入口
 updated: 2026-10-18
-related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings, upstream-update-stop, upstream-report-stop]
+related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings, upstream-update-stop, upstream-report-stop, zenz-rerank]
 ---
 
 # MeltKelp 全体像
@@ -14,7 +14,7 @@ related: [engine-base-choice, context-rerank-lessons, build-install, recurring-r
 
 MeltKelp(とろろ昆布)は、Windows 向けの日本語入力 Meltype(yksr-melt/Meltype、GPL-3.0)の個人用フォーク。
 Meltype の強みである英語と日本語の自動判定をそのまま使い、漢字変換の候補を小型の言語モデル zenz で
-文脈つきに並べ替えることを目指す(#2。2026-10-17 時点では未実装で、中身は上流の Meltype に、上流の自動更新を止める変更 [[upstream-update-stop]] と、報告の導線を上流に向けない変更 [[upstream-report-stop]] を足しただけ)。
+文脈つきに並べ替える([[zenz-rerank]]、#2)。ほかに上流の Meltype に足したのは、上流の自動更新を止める変更 [[upstream-update-stop]] と、報告の導線を上流に向けない変更 [[upstream-report-stop]]。
 
 前身は imev(kant0123/imev。Mozc 本家に zenz の文脈リランカーを載せた個人用 IME)。imev の土台を Meltype に移すと
 決めて立ち上げた。理由は [[engine-base-choice]]、imev で得た並べ替えの知見は [[context-rerank-lessons]]。
@@ -53,6 +53,11 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
   MeltKelp が上書きされる(上流の版 1.2.1 をそのまま持つので「公開版」と判定される)。確認・ダウンロード・適用・
   トレイからの手動の更新のすべてを、設定の「自動で更新する」に関わらず止めた(#3)。仕組みと、上流の取り込みで
   `Updater.cs` が衝突したときの直し方は [[upstream-update-stop]]。
+- **MeltKelp の版は上流の版と別に持つ。** `src/Meltype.Core/Config/MeltKelpInfo.cs:12 MeltKelpInfo` の `Version`(#2 の zenz の並べ替えを
+  0.1.0 とした。2026-10-18、ユーザーの判断)。「Meltype について」・`--version`・報告の実行環境に「MeltKelp 0.1.0 (Meltype 1.2.1 ベース)」の形で出す。
+  上流の版(`Meltype.csproj` の 1.2.1)は変えない。`IsPublicRelease`(メジャー 1 以上)で公開版かを決めていて、0.x にすると
+  プレビュー版の扱いに変わり、上流の取り込みのたびに衝突するため。リリースのタグは `meltkelp-v<版>`(`v*` を origin に push すると、
+  上流の `build.yml` の `package` ジョブがリリースを作ろうとする)。
 - **報告の導線を上流に向けない。** トレイの「不具合の報告・提案」などは上流のままだと上流の Issue の画面を開き、
   誤判定の報告では入力内容が URL に入る。報告の URL を MeltKelp の Issue の画面(クエリ無し)に向け、
   トレイの「不具合の報告・提案」「直した誤判定を報告」は出さない(#8、[[upstream-report-stop]])。

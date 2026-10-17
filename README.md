@@ -1,9 +1,9 @@
 # MeltKelp(とろろ昆布)
 
 **半角/全角 キーを押さずに打てる日本語入力 Meltype の、個人用フォーク。**
-漢字変換の候補を、小型の言語モデル zenz で文脈つきに並べ替えることを目指しています。
+漢字変換の候補を、小型の言語モデル zenz で文脈つきに並べ替えます。
 
-対応 OS は Windows 10 / 11(64bit)。ライセンスは GPL-3.0。
+対応 OS は Windows 10 / 11(64bit)。ライセンスは GPL-3.0。版は MeltKelp 0.1.0(Meltype 1.2.1 ベース)。
 
 ## これは何か
 
@@ -14,13 +14,13 @@
 | | 状態 |
 |---|---|
 | Meltype の機能(英日の自動判定・変換・学習・アプリごとの設定) | 上流のまま使える |
-| zenz による漢字変換候補の文脈つき並べ替え | **未実装**([#2](https://github.com/kant0123/MeltKelp/issues/2)) |
+| zenz による漢字変換候補の文脈つき並べ替え | 入れてある(ランタイムを別に置く。[#2](https://github.com/kant0123/MeltKelp/issues/2)) |
 | 上流 Meltype のリリースによる自動更新 | 止めてある(公式版で MeltKelp が上書きされないように) |
 | 上流の Issue 画面を開く報告の導線 | 止めてある(トレイの「不具合の報告・提案」などを出さない) |
 
-並べ替えが目指すのは、たとえば文脈「劇団の千秋楽の」+ こうえん → **公演**、「街の」+ こうえん → **公園** のような選び分けです。
+並べ替えは、たとえば文脈「劇団の千秋楽の」+ こうえん → **公演**、「街の」+ こうえん → **公園** のような選び分けです。
 上流がエンジンに渡す文脈は短い(キャレットの前の同じ文の日本語・最大 10 文字)ので、それを zenz で補います。
-前身の imev(Mozc に zenz を載せた個人用 IME)で確かめた方式を移します。
+前身の imev(Mozc に zenz を載せた個人用 IME)で確かめた方式を移しました。仕組みは [wiki/components/zenz-rerank.md](wiki/components/zenz-rerank.md)。
 
 ### 上流との関係
 
@@ -48,6 +48,13 @@ powershell -ExecutionPolicy Bypass -File .\Build-Package.ps1
 
 # 入れ直す(Meltype IME の登録で管理者権限の確認が出る)
 .\dist\Meltype\Install.cmd
+```
+
+zenz の並べ替えを使うには、ランタイム(llama.cpp の DLL とモデル、約 75MB)を `%LOCALAPPDATA%\Meltype\zenz` に置いて、Meltype を起動し直します。
+置かなければ、上流と同じ候補順のまま動きます。設定「zenz で候補を文脈に合わせて並べ替える」で止められます。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Install-ZenzRuntime.ps1
 ```
 
 入ると、トレイに「あ」が出ます。トレイのアイコン →「更新」に「自動で更新する」が無いことも確かめてください(あると、上流のリリースで公式版に戻されます)。

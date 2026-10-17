@@ -28,6 +28,7 @@ internal static class ReportInfo
         var lines = new List<string>
         {
             $"Meltype: {AppInfo.Version}",
+            $"MeltKelp: {Config.MeltKelpInfo.Version}",
             $"OS: {OsName} {WindowsVersion()} ({RuntimeInformation.OSArchitecture})",
             $".NET: {System.Environment.Version}",
             $"管理者として実行: {(IsAdministrator() ? "はい" : "いいえ")}",

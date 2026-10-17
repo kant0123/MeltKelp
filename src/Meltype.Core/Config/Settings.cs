@@ -167,7 +167,7 @@ public enum AppProfile
 /// config.json の内容。値はすべて保守的な初期値にしてある (設計書 §18)。
 /// インスタンスは不変として扱い、変更時は Clone して差し替える。
 /// </summary>
-public sealed class Settings
+public sealed partial class Settings
 {
     // 型の情報はビルド時に作ったもの (SettingsJsonContext)。Mac・Linux の NativeAOT でも読める (issue #151)。
     // 字下げ・コメントと末尾の , を許す・列挙型は名前で読み書き は SettingsJsonContext の属性で指定している。

@@ -1,8 +1,8 @@
 ---
 type: concept
 summary: zenz の並べ替えを載せる土台に Meltype を選んだ理由。imev での Mozc 本家・Ohagey(azooKey + Zenzai)の評価と、Meltype に移した決め手
-updated: 2026-10-17
-related: [overview, context-rerank-lessons, build-install]
+updated: 2026-10-18
+related: [overview, context-rerank-lessons, build-install, zenz-rerank]
 ---
 
 # 土台の選択
@@ -30,7 +30,7 @@ imev は Mozc 本家(TSF)に Rewriter として載せ、MeltKelp は Meltype の
 - **英語と日本語の自動判定がある。** 半角/全角を押さずに打ち分けられるのは Meltype の強みで、imev(Mozc 本家)には無い。
 - **候補の一覧を Meltype 自身が持っている。** Meltype IME の候補ウィンドウの中身も変換ボックスも `Meltype.exe` が決めるので、
   並べ替えを `Meltype.exe`(C#)の中で完結でき、TSF の DLL にも Mozc 本体にも手を入れずに済む。差し込む場所は
-  `HybridConverter`(Mozc と Microsoft IME の組み合わせ)の外側(#2)。
+  `HybridConverter`(Mozc と Microsoft IME の組み合わせ)の外側(#2、[[zenz-rerank]])。
 - **上流は文脈を短くしか使っていない。** 変換エンジン(Mozc ヘルパー・Microsoft IME)に渡す文脈は、キャレットの前の
   同じ文の日本語の部分・最大 10 文字だけ(`CompositionController.ConversionContext()`)。文をまたぐ文脈や、
   文脈が取れないアプリでの直前の確定文字列は使われない。並べ替えで取り返せる余地がある。

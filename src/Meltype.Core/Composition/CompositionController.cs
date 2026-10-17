@@ -90,7 +90,7 @@ public interface ICompositionHost
 public sealed record ReconversionSelection(string Text, string Reading);
 
 /// <summary>CompositionController の設定と、外の判定器へのつなぎ。</summary>
-public sealed record CompositionOptions
+public sealed partial record CompositionOptions
 {
     /// <summary>打ったそばから漢字に変換して見せるか。</summary>
     public Func<bool> LiveConversion { get; init; } = () => false;
@@ -1390,6 +1390,7 @@ public sealed class CompositionController
     /// </summary>
     private List<Clause> ConvertJapanese(string kana)
     {
+        (_converter as IPrecedingTextReceiver)?.SetPrecedingText(_precedingText); // MeltKelp #2: zenz の文脈
         // ローマ字として読めずに残った英字 (こほぃc の c) と半角の記号 (... @) は、変換エンジンに渡すと別の記号 (© ．．． ＠) にされるので、
         // そのままの文節にする。数字は、記号・英字とつながっていればそのまま (3.0 の 3 を 1 文字だけ渡すと ❸ にされる)、
         // それ以外は変換エンジンに渡す (2026ねん → 2026年)。
