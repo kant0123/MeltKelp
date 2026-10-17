@@ -51,7 +51,7 @@ grep "^## \[" wiki/log.md | tail -5
   手元の .NET SDK が 9 だったので、winget で .NET 10 SDK(10.0.402)を入れてから `Meltype.Tests` を流した。
 
 ## [2026-10-17] ingest | PR #11 テンプレートの更新(コード参照の解釈・hooks.json の形・.agent/rules の写し)を取り込む
-- 更新: [[recurring-review-findings]](テンプレート PR #47 の実例と、種類「外部ツールの設定形式を一次資料で確かめずに書く」)
+- 更新: [[recurring-review-findings]](テンプレート PR #47 の実例と、種類「外部ツールの設定形式を一次資料で確かめずに書く」。agy レビューで妥当だった `deploy.yml` の指摘も同じ種類に足した)
 - 備考: #10。PR #4 で適用したテンプレートは PR #42 までの版だった。テンプレート PR #47・#48 のうち、`README.md`・`selfcheck.yml`・`deploy/`・
   `scripts/setup.*`(PR #4 で持ち込んでいないもの)以外を取り込んだ。コード参照はルート直下のファイル(`CLAUDE.md` など)を指すものも
   書けるようになった(スラッシュも記号名も無いものは、ファイルが実在するときだけ参照として数える)。
