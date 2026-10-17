@@ -41,7 +41,7 @@ grep "^## \[" wiki/log.md | tail -5
   main のブランチ保護は private の無料プランで 403 になり、掛けられていない([[overview]] の「運用」)。
 
 ## [2026-10-17] ingest | PR #7 main のブランチ保護を掛けない運用にした判断を残す
-- 更新: [[overview]]
+- 更新: [[overview]], [[recurring-review-findings]]
 - 備考: #5。PR #4 で保護の適用が 403(private の無料プラン)になり、ユーザーが Pro にも public にもせず保護なしで運用すると決めた。`docs/development_workflow.md` の「ブランチ保護」節も合わせた。作業中に merge hook の誤検知を見つけて #6 に起票した。
 
 ## [2026-10-17] ingest | PR #9 上流のリリースによる自動更新を止める
@@ -64,7 +64,8 @@ grep "^## \[" wiki/log.md | tail -5
   「直した誤判定を報告...」に 1 行ずつ差し込んだ。「不具合の報告・提案...」は当初残していたが、ユーザーの判断で消した。
 
 ## [2026-10-18] ingest | PR #16 merge hook が引数の中の文字列に反応しないようにする
-- 更新: [[overview]]
+- 更新: [[overview]], [[recurring-review-findings]]
 - 備考: #6。判定を「コマンド文字列に含まれるか」から「実行されるコマンドか」に変えた(`.claude/hooks/command_match.mjs`)。
   `check_agy_review.sh` と `check_wiki_updated.sh` が使う。解釈に失敗したときは従来の部分一致に戻す(フェイルクローズ)。
   上流 Meltype には無い MeltKelp 側の仕組みなので、取り込みで衝突する心配は無い。テンプレート側にも同じ作りがある。
+  agy レビューの指摘(CRLF のヒアドキュメントで終端を見失い素通しになる)を再現して直した。[[recurring-review-findings]] に実例を足した。

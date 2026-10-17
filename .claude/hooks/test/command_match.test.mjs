@@ -45,7 +45,10 @@ describe('findInvocations: マージを実行するコマンドを見つける',
     ['pwsh -Command', 'pwsh -Command "gh pr merge 5"', [['5']]],
     ['ヒアドキュメント本文の展開', 'cat <<EOF\n$(gh pr merge 5)\nEOF', [['5']]],
     ['ヒアドキュメントの後ろ', 'cat <<EOF\ntext\nEOF\ngh pr merge 5', [['5']]],
-    ['複数', 'gh pr merge 5 && gh pr merge 6', [['5'], ['6']]],
+    ['CRLF のヒアドキュメントの後ろ', 'cat <<EOF\r\ntext\r\nEOF\r\ngh pr merge 5\r\n', [['5']]],
+    ['CRLF の引用符付きヒアドキュメントの後ろ', "cat <<'EOF'\r\ntext\r\nEOF\r\ngh pr merge 5", [['5']]],
+    ['<<- のヒアドキュメントの後ろ', 'cat <<-EOF\n\ttext\n\tEOF\ngh pr merge 5', [['5']]],
+    ['複数','gh pr merge 5 && gh pr merge 6', [['5'], ['6']]],
     ['bash -c と eval の組み合わせでも重複しない', 'bash -c "eval gh pr merge 5"', [['5']]],
   ];
   for (const [name, command, expected] of hits) {

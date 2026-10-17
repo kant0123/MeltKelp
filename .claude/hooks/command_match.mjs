@@ -204,7 +204,7 @@ function scan(text, out, depth) {
         while (i < text.length) {
           let end = text.indexOf('\n', i);
           if (end < 0) end = text.length;
-          let line = text.slice(i, end);
+          let line = text.slice(i, end).replace(/\r$/, ''); // CRLF の終端行も区切り語と一致させる
           i = end + 1;
           if (strip) line = line.replace(/^\t+/, '');
           if (line === delim) break;

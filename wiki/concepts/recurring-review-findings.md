@@ -1,7 +1,7 @@
 ---
 type: concept
 summary: レビューで妥当と判定された指摘を誤りの種類ごとに集約した台帳。着手時と push 前に読む
-updated: 2026-10-17
+updated: 2026-10-18
 related: [overview]
 ---
 
@@ -47,7 +47,7 @@ push 前は、自分の差分が下の各種類に当てはまらないかを 1 
 push 前に確かめること:
 
 - 外部コマンドが失敗したとき・出力が空のとき、処理は止まるか。黙って成功扱いに倒れていないか
-- 出力を解釈する正規表現・パーサは、引用符・空白・非 ASCII・前置きの付いた値でも合うか
+- 出力を解釈する正規表現・パーサは、引用符・空白・非 ASCII・前置き・CRLF の付いた値でも合うか
 - 外部から来たパスを `resolve()` / `open()` する前に、不正な値で例外が出たときの扱いがあるか
 - 同じ記録(PR コメント等)が何度も書かれうるとき、どれを正とするか(最新か・全部か)を決めているか
 
@@ -57,6 +57,7 @@ push 前に確かめること:
 - PR #8 — `review/agy_review.py` JSON 抽出 — LLM 出力に前置きがあると JSON を取り出せない
 - PR #20 — `review/agy_review.py` 差分パスの抽出 — 空白・非 ASCII を含むパスは `git diff` が引用符で囲むため正規表現に合わない
 - PR #20 — `review/agy_review.py` パスの解決 — Windows で不正な文字を含むパスで `OSError`
+- MeltKelp PR #16 — `.claude/hooks/command_match.mjs` ヒアドキュメントの終端行 — CRLF の入力だと終端行が `EOF\r` になって区切り語と一致せず、後ろのマージのコマンドまで本文として読み飛ばして素通ししていた(`\r` を除いて再現・修正)
 - PR #33 — `review/agy_review.py has_unverified_critical()` — 評価の理由文に「未確認」があるだけで判定語と取り違えていた
 - PR #33 — `review/agy_review.py has_unverified_critical()` — 過去の評価も見ていて、記録し直しても差し止めが解けなかった
 - imev PR #2 — `02_src/poc/run_eval.py fetch_models()` — 例外を出さない `sh()` で GGUF のメタデータ書き換えを呼び、失敗しても出力ファイルが無いまま後段のベンチへ進んでいた
