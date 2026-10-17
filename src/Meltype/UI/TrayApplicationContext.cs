@@ -123,7 +123,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         backup.DropDownItems.Add("バックアップから戻す...", null, (_, _) => RestoreBackup());
         menu.Items.Add(backup);
         menu.Items.Add("不具合の報告・提案...", null, (_, _) => OpenReport());
+        menu.Items[^1].Visible = UpstreamReport.Allowed; // MeltKelp: 上流に報告しないので出さない (MeltKelp #8)
         menu.Items.Add("直した誤判定を報告...", null, (_, _) => new CorrectionReportDialog(_composition.Corrections, _engine.Settings).Show());
+        menu.Items[^1].Visible = UpstreamReport.Allowed; // MeltKelp: 入力した文字を Issue にする項目なので出さない (MeltKelp #8)
         menu.Items.Add("Meltype について...", null, (_, _) => MessageBox.Show(AppInfo.AboutText, "Meltype について", MessageBoxButtons.OK, MessageBoxIcon.Information));
         menu.Items.Add("学習した語...", null, (_, _) => ShowLearnedWords());
         var forget = new ToolStripMenuItem("学習データを消す");

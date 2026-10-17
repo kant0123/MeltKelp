@@ -56,3 +56,9 @@ grep "^## \[" wiki/log.md | tail -5
   `scripts/setup.*`(PR #4 で持ち込んでいないもの)以外を取り込んだ。コード参照はルート直下のファイル(`CLAUDE.md` など)を指すものも
   書けるようになった(スラッシュも記号名も無いものは、ファイルが実在するときだけ参照として数える)。
   `.agent/rules/` は MeltKelp の `CLAUDE.md` の写しとして書き直した(フォークの不変条件・実機確認・agy レビュー必須を含む)。
+
+## [2026-10-18] ingest | PR #12 報告の導線を上流に向けない
+- 新規: [[upstream-report-stop]]
+- 更新: [[overview]], [[upstream-update-stop]]
+- 備考: #8。判定は `src/Meltype/UpstreamReport.cs` に置き、`AppInfo` の報告の URL 3 つ・トレイの「不具合の報告・提案...」
+  「直した誤判定を報告...」に 1 行ずつ差し込んだ。「不具合の報告・提案...」は当初残していたが、ユーザーの判断で消した。
