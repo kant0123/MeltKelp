@@ -41,7 +41,7 @@ grep "^## \[" wiki/log.md | tail -5
   main のブランチ保護は private の無料プランで 403 になり、掛けられていない([[overview]] の「運用」)。
 
 ## [2026-10-17] ingest | PR #7 main のブランチ保護を掛けない運用にした判断を残す
-- 更新: [[overview]]
+- 更新: [[overview]], [[recurring-review-findings]]
 - 備考: #5。PR #4 で保護の適用が 403(private の無料プラン)になり、ユーザーが Pro にも public にもせず保護なしで運用すると決めた。`docs/development_workflow.md` の「ブランチ保護」節も合わせた。作業中に merge hook の誤検知を見つけて #6 に起票した。
 
 ## [2026-10-17] ingest | PR #9 上流のリリースによる自動更新を止める
@@ -83,3 +83,11 @@ grep "^## \[" wiki/log.md | tail -5
 ## [2026-10-18] ingest | PR #21 README から画像を外す
 - 備考: #20。ユーザーの判断で、README のロゴ・デモ・バッジをすべて外した(`docs/images/` のファイルは上流の他の文書が使うので残す)。
   ロゴの作者の謝辞は文章に残してある。Wiki のページへの影響なし。
+
+## [2026-10-18] ingest | PR #16 merge hook が引数の中の文字列に反応しないようにする
+- 更新: [[overview]], [[recurring-review-findings]]
+- 備考: #6。判定を「コマンド文字列に含まれるか」から「実行されるコマンドか」に変えた(`.claude/hooks/command_match.mjs`)。
+  `check_agy_review.sh` と `check_wiki_updated.sh` が使う。解釈に失敗したときは従来の部分一致に戻す(フェイルクローズ)。
+  上流 Meltype には無い MeltKelp 側の仕組みなので、取り込みで衝突する心配は無い。テンプレート側にも同じ作りがある。
+  #14 の `--repo` / `-R` は、全文の正規表現ではなくマージごとの語から取るようにした。
+  agy レビューの指摘(CRLF のヒアドキュメントで終端を見失い素通しになる)を再現して直した。[[recurring-review-findings]] に実例を足した。

@@ -96,5 +96,9 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
   マージは素通しになる。`gh pr merge` に `--repo` / `-R` が付いていれば、hook は `agy_review.py --check --repo` で
   そのリポジトリの PR として判定する(#14。付いていないと別リポジトリの PR 番号を MeltKelp の PR として引いて止まる)。
   別リポジトリでも判定は外さない。`branch-protection.json` は、プランか公開範囲を変えたときのために正として残している。
+  hook が見るのは「実際に実行されるコマンド」だけで、Issue や PR の本文・`grep` のパターンなど引数や引用符の中の文字列には
+  反応しない(#6)。`--repo` / `-R` も、そのマージのコマンドの語から取る。読み取りは `.claude/hooks/command_match.mjs` が
+  受け持ち(`check_wiki_updated.sh` の PR 作成の判定も同じ)、`&&` `;` `|` 改行・`$(...)`・`bash -c` / `eval` の引数まで辿る。
+  node が無い・解釈に失敗したときは、従来の部分一致に戻して止める側に倒す。`python -c` など別言語から組み立てる呼び出しは読まない。
 - agy レビューは IME 向けのドメイン `ime`(`review/domain_invariants.json`)で回す。テンプレート既定の `general` は
   Web 向けで、変換を止めない・入力内容を出さない・UI スレッドの時間上限・上流との差分の最小化の観点を持たない。
