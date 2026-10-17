@@ -80,6 +80,10 @@ grep "^## \[" wiki/log.md | tail -5
   何であるか・上流との関係・ビルドして入れる手順(詳細は [[build-install]])・開発の入口に置き換え、zenz の並べ替えが未実装(#2)であることを表に書いた。
   上流の著作権表示と GPL-3.0 は残した。上流の取り込みで README は衝突するので、MeltKelp 側を残す。
 
+## [2026-10-18] ingest | PR #21 README から画像を外す
+- 備考: #20。ユーザーの判断で、README のロゴ・デモ・バッジをすべて外した(`docs/images/` のファイルは上流の他の文書が使うので残す)。
+  ロゴの作者の謝辞は文章に残してある。Wiki のページへの影響なし。
+
 ## [2026-10-18] ingest | PR #16 merge hook が引数の中の文字列に反応しないようにする
 - 更新: [[overview]], [[recurring-review-findings]]
 - 備考: #6。判定を「コマンド文字列に含まれるか」から「実行されるコマンドか」に変えた(`.claude/hooks/command_match.mjs`)。
