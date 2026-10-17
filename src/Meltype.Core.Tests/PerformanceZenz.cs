@@ -16,6 +16,10 @@ internal static class PerformanceZenz
     /// <summary>cold で打つ前に、変換エンジンの控えと一緒に採点の控えも捨てる。</summary>
     public static void ClearCache() => s_converter?.ClearCache();
 
+    /// <summary>MoreCandidates に渡す一覧。zenz で包んだならアプリと同じく zenz の一覧 (採点の順に並べ替えたもの)。</summary>
+    public static Func<string, IReadOnlyList<string>> Candidates(IKanjiConverter? converter, Func<string, IReadOnlyList<string>> plain) =>
+        converter is ZenzRerankingConverter zenz ? zenz.Candidates : plain;
+
     public static IKanjiConverter? Wrap(IKanjiConverter? inner, Func<string, IReadOnlyList<string>>? candidates)
     {
         if (inner is null || Environment.GetEnvironmentVariable("MELTKELP_ZENZ") == "0")

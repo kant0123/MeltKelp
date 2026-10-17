@@ -22,14 +22,14 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview, r
 | `scripts/Install-ZenzRuntime.ps1` | ランタイムを `%LOCALAPPDATA%\Meltype\zenz` に置く |
 
 上流のファイルへの変更は、ほかに `Settings`・`CompositionOptions` の `partial`(設定の `ZenzRerank` を別ファイルで足すため)、
-`TrayApplicationContext` の 1 行、`Meltype.Core.csproj` の `AllowUnsafeBlocks`、`--perf` の `Performance.cs` の 2 行だけ。
+`TrayApplicationContext` の 1 行、`Meltype.Core.csproj` の `AllowUnsafeBlocks`、`--perf` の `Performance.cs` の 4 行だけ(zenz で包む・cold で控えを捨てる・計測用のラッパーが文脈を渡す・一覧を zenz のものにする)。
 
 ## 仕組みの要点
 
 - **選び直すのは `ConvertClauses()` の各文節の `Text`。** 最初の Space で出る候補はこれで決まり、`Candidates()`(`MoreCandidates`)は
   `CompositionController.Expand()` が先頭を固定したまま後ろに足すだけなので、`Candidates()` だけ並べ替えても先頭は変わらない。
-  `Candidates()` は、同じ読みを直前に採点した順に、採点した候補どうしの位置の中で並べ替えるだけ(採点し直さない)。
-  その順は変換のたびに文節の読みごとに消してから採点し直す。採点できなかった変換(文脈が空・時間切れ・失敗)の後に、
+  `Candidates()` は、同じ読みを最後に採点できたときの文脈の採点で、採点した候補どうしの位置の中で並べ替えるだけ(採点し直さない。
+  事前は一覧の中の位置)。その文脈は変換のたびに文節の読みごとに消してから採点し直す。採点できなかった変換(文脈が空・時間切れ・失敗)の後に、
   前の文脈の順で一覧が並ばないようにするため(agy レビューの指摘。[[recurring-review-findings]])。
 - **文脈は zenz 用に別に作る。** 上流の文脈(`ConversionContext()`: 同じ文の日本語・最大 10 文字)は使わず、`_precedingText`
   (キャレットの前の確定済みの文字。UI Automation と Meltype IME はどちらも 20 文字までしか読まない)の**最後の改行より後ろ**に、同じ変換の前の文節
@@ -43,12 +43,15 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview, r
 - **プロンプト:** `[BOS] U+EE02 文脈 U+EE00 読みのカタカナ U+EE01 候補`(azooKey の `ZenzPromptBuilder` の v3 と同じ)。
   文脈 + 読みの KV を系列 0 に置いて次の採点でも共通の頭を使い回し、候補ごとに `seq_cp` で系列を分けて 1 回の decode で採点する。
   終わったら(途中で失敗しても)分けた系列を消す。
-- **時間:** 1 回の `ConvertClauses()` で採点に使ってよいのは合計 150ms(`ZenzRerankOptions.BudgetMs`)。過ぎたら残りの文節は
+- **時間:** 1 回の変換で採点に使ってよいのは合計 150ms(`ZenzRerankOptions.BudgetMs`)。予算は `SetPrecedingText()`(`ConvertJapanese()` の先頭)
+  から数える。`ConvertClauses()` を単位にすると、`CompositionController.ConvertWithContext()` が文脈あり・なしで 2 回呼ぶので予算の 2 倍止まる
+  (agy レビューの指摘)。過ぎたら残りの文節は
   変換エンジンの順のまま、締め切りは `llama_set_abort_callback` で decode の途中でも打ち切る。モデルの読み込みは別スレッドで、
   終わるまでは採点しない。読み込みは Meltype の起動時(`HybridConverter` を包んだとき)に始める。最初の変換で始めると、起動直後の
   1 回目の変換が並べ替わらず、実機の確認で「効いていない」と見誤る。読み込みの最後に 1 回試しに採点しておく(最初の decode は計算用のバッファを確保するので遅い)。
-- **キャッシュ:** (文脈, 読み, 候補) → 対数確率。**失敗・時間切れも覚える**(ライブ変換は打つたびに変換するので、
-  同じ入力で毎回締め切りまで待たないため)。512 件で捨てて覚え直す。
+- **キャッシュ:** (文脈, 読み, 候補) → 対数確率を**候補ごとに**控え、足りない候補だけを採点する(候補は別々の系列で採点するので、
+  まとめ方で値は変わらない。文脈あり・なしで先頭の候補が違っても採点し直さない)。**失敗・時間切れも覚える**(ライブ変換は打つたびに
+  変換するので、同じ入力で毎回締め切りまで待たないため)。2048 件で捨てて覚え直す。
 
 ## 学習との順序
 
@@ -97,8 +100,8 @@ imev のプロンプトのタグの誤り(U+E200〜U+E202。正しくは U+EE00�
 
   | 例文 | 1 キー cold p95 / p99 (ms) | 変換 cold p95 / p99 (ms) | 変換の正解 |
   | --- | --- | --- | --- |
-  | `tools/zenz-rerank-cases.tsv`(14 文)導入前 → 後 | 2.41 / 2.98 → 46.2 / 66.5 | 1.04 / 1.62 → 1.06 / 1.61 | 11 → 14 |
-  | `tools/mozc-compare-cases.tsv`(60 文)導入前 → 後 | 1.71 / 2.60 → 46.4 / 66.2 | 1.58 / 1.94 → 2.64 / 113.0 | 51 → 51 |
+  | `tools/zenz-rerank-cases.tsv`(14 文)導入前 → 後 | 2.41 / 2.98 → 40.4 / 58.6 | 1.04 / 1.62 → 1.03 / 1.59 | 11 → 14 |
+  | `tools/mozc-compare-cases.tsv`(60 文)導入前 → 後 | 1.71 / 2.60 → 38.8 / 55.2 | 1.58 / 1.94 → 2.43 / 96.1 | 51 → 51 |
 
 - ワーキングセットはモデルの分だけ増える(約 90MB → 195MB)。
 - `--perf` は最初に 1 周打ってから測るので、zenz の控えを捨てないと cold でも採点の結果を使い回してしまい、導入後のほうが速く見えた

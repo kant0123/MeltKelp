@@ -50,14 +50,14 @@ public sealed record ZenzRerankOptions
     /// <summary>1 回の変換 (ConvertClauses) で採点に使ってよい時間の合計 (ミリ秒)。UI スレッドで呼ばれるため。</summary>
     public int BudgetMs { get; init; } = 150;
 
-    /// <summary>採点の結果を覚えておく数。超えたら捨てて覚え直す。</summary>
-    public int CacheSize { get; init; } = 512;
+    /// <summary>採点の結果 (候補ごと) を覚えておく数。超えたら捨てて覚え直す。</summary>
+    public int CacheSize { get; init; } = 2048;
 }
 
 /// <summary>
 /// MeltKelp: 変換エンジン (HybridConverter) を包み、各文節の最初の候補を zenz で文脈つきに選び直す (MeltKelp #2)。
 ///   ・最初の候補は ConvertClauses の各文節の Text で決まるので、並べ替えの本体はここ。Candidates (↑↓・Space の連打で出す一覧) は、
-///     同じ読みを直前に採点した順に並べ替えるだけ (採点し直さない)
+///     同じ読みを最後に採点した結果で並べ替えるだけ (採点し直さない)
 ///   ・文脈は、受け取ったキャレットの前の文字列の最後の行 + 同じ変換の中の前の文節 (選び直した後のもの)。上限は足し込んだ後に掛ける
 ///   ・文脈が空・モデルが無い・読み込み中・採点の失敗・時間切れ・例外では、変換エンジンの結果をそのまま返す (フェイルオープン)
 ///   ・かなだけの候補も採点する。imev では読みを写したカタカナ (ゲキダン) が勝つので外していたが、原因は imev のプロンプトの
@@ -69,11 +69,15 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
     Func<bool> enabled, ZenzRerankOptions? options = null) : IKanjiConverter, ILearningConverter, IPrecedingTextReceiver
 {
     private readonly ZenzRerankOptions _options = options ?? new ZenzRerankOptions();
-    // (文脈, 読み, 候補) → 対数確率 (失敗・時間切れは null。同じ入力で何度も時間を使わないため、失敗も覚える)
-    private readonly Dictionary<string, double[]?> _scores = new(StringComparer.Ordinal);
-    // 読み → 直前に採点した候補の順 (Candidates の並べ替えに使う)
-    private readonly Dictionary<string, string[]> _ranked = new(StringComparer.Ordinal);
+    // (文脈, 読み, 候補) → 対数確率。候補ごとに控え、足りない候補だけを採点する (対数確率は候補ごとに別の系列で求めるので、
+    // まとめ方で値は変わらない)。失敗・時間切れは NaN (同じ入力で何度も時間を使わないため、失敗も覚える)
+    private readonly Dictionary<(string Context, string Reading, string Candidate), double> _scores = [];
+    // 読み → 最後に採点できたときの文脈 (Candidates の並べ替えに使う)。採点できなかった変換では消す
+    private readonly Dictionary<string, string> _lastContext = new(StringComparer.Ordinal);
     private string? _precedingText;
+    // 1 回の変換 (ConvertJapanese → SetPrecedingText) で採点に使ってよい時間の締め切り。CompositionController.ConvertWithContext は
+    // ConvertClauses を文脈あり・なしで 2 回呼ぶので、呼ぶたびに取り直すと UI スレッドを予算の 2 倍止める (agy レビュー)
+    private long? _deadline;
 
     /// <summary>
     /// HybridConverter を包む (候補の一覧も HybridConverter から取る)。アプリの起動時に作るので、ここでモデルの読み込みを始める
@@ -85,16 +89,18 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
         if (enabled()) scorer.EnsureLoading();
     }
 
-    /// <summary>直近の変換で採点した文節の数 (テスト・計測用)。</summary>
-    public int ScoredClauses { get; private set; }
-
-    public void SetPrecedingText(string? text) => _precedingText = text;
+    /// <summary>変換を頼む側が、変換の直前に呼ぶ。採点に使ってよい時間 (ZenzRerankOptions.BudgetMs) もここから数える。</summary>
+    public void SetPrecedingText(string? text)
+    {
+        _precedingText = text;
+        _deadline = Environment.TickCount64 + _options.BudgetMs;
+    }
 
     /// <summary>採点の結果の控えを捨てる (--perf の cold で、変換エンジンの控えと一緒に捨てる)。</summary>
     internal void ClearCache()
     {
         _scores.Clear();
-        _ranked.Clear();
+        _lastContext.Clear();
     }
 
     public string? Convert(string hiragana) => inner.Convert(hiragana);
@@ -107,10 +113,9 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
     public IReadOnlyList<ConversionClause>? ConvertClauses(string hiragana, string? context = null)
     {
         var clauses = inner.ConvertClauses(hiragana, context);
-        ScoredClauses = 0;
         if (clauses is null || clauses.Count == 0) return clauses;
         // 前の変換で採点した順は、今回採点し直せたときだけ使う (文脈が空・時間切れ・失敗で、前の文脈の順を一覧に残さない)
-        foreach (var clause in clauses) _ranked.Remove(clause.Reading);
+        foreach (var clause in clauses) _lastContext.Remove(clause.Reading);
         if (!enabled()) return clauses;
         try
         {
@@ -128,23 +133,31 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
         }
     }
 
-    /// <summary>読みの候補の一覧。同じ読みを直前に採点していれば、採点した候補どうしの位置の中でその順に並べ替える。</summary>
+    /// <summary>
+    /// 読みの候補の一覧。同じ読みを最後に採点できていれば、そのときの文脈の採点で、採点した候補どうしの位置の中で並べ替える
+    /// (事前は一覧の中の位置)。採点していない候補の位置は動かさない。
+    /// </summary>
     public IReadOnlyList<string> Candidates(string reading)
     {
         var list = candidates(reading);
-        if (!enabled() || !_ranked.TryGetValue(reading, out var ranked)) return list;
+        if (!enabled() || !_lastContext.TryGetValue(reading, out var context)) return list;
         var slots = new List<int>();
-        for (var i = 0; i < list.Count; i++) if (Array.IndexOf(ranked, list[i]) >= 0) slots.Add(i);
-        // 一覧が採点したときと変わっていたら (学習・変換エンジンの切り替え) 並べ替えない
-        if (slots.Count != ranked.Length) return list;
+        for (var i = 0; i < list.Count; i++)
+            if (_scores.TryGetValue((context, reading, list[i]), out var score) && !double.IsNaN(score)) slots.Add(i);
+        if (slots.Count < 2) return list;
+        var ordered = slots
+            .OrderByDescending(i => _scores[(context, reading, list[i])] - _options.RankPrior * i)
+            .ThenBy(i => i)
+            .Select(i => list[i])
+            .ToList();
         var result = list.ToList();
-        for (var j = 0; j < slots.Count; j++) result[slots[j]] = ranked[j];
+        for (var j = 0; j < slots.Count; j++) result[slots[j]] = ordered[j];
         return result;
     }
 
     private IReadOnlyList<ConversionClause> Rerank(IReadOnlyList<ConversionClause> clauses)
     {
-        var deadline = Environment.TickCount64 + _options.BudgetMs;
+        var deadline = _deadline ?? Environment.TickCount64 + _options.BudgetMs;
         var result = new List<ConversionClause>(clauses.Count);
         // 前の行は使わない: メモ帳の別の行・チャットの別のメッセージなど関係の無いことが多く、引っぱられる
         // (前の行「著名な研究者の講演」+ 街の + こうえん → 公演 になった)。文をまたぐ (。の前) のは使う
@@ -171,31 +184,31 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
             if (!list.Contains(candidate)) list.Add(candidate);
         }
         if (list.Count < 2) return clause.Text;
-        var slots = list;
 
-        var key = string.Join("\u0001", context, clause.Reading, string.Join("\u0002", slots));
-        if (!_scores.TryGetValue(key, out var scores))
+        var missing = list.Where(c => !_scores.ContainsKey((context, clause.Reading, c))).ToList();
+        if (missing.Count > 0)
         {
+            if (Environment.TickCount64 >= deadline) return clause.Text;
             var watch = Stopwatch.StartNew();
-            scores = scorer.Score(context, clause.Reading, slots, deadline)?.ToArray();
-            if (scores is not null && scores.Length != slots.Count) scores = null;
+            var scored = scorer.Score(context, clause.Reading, missing, deadline);
+            if (scored is not null && scored.Count != missing.Count) scored = null;
             if (_scores.Count >= _options.CacheSize) _scores.Clear();
-            _scores[key] = scores;
-            Diagnostics.Log.Info(scores is null
-                ? $"zenz: 採点できませんでした (文脈 {context.Length} 文字・候補 {slots.Count} 件・{watch.ElapsedMilliseconds} ms)。変換エンジンの順のまま"
-                : $"zenz: 採点しました (文脈 {context.Length} 文字・候補 {slots.Count} 件・{watch.ElapsedMilliseconds} ms): {string.Join(" ", scores.Select(s => s.ToString("F2")))}");
+            for (var i = 0; i < missing.Count; i++) _scores[(context, clause.Reading, missing[i])] = scored?[i] ?? double.NaN;
+            Diagnostics.Log.Info(scored is null
+                ? $"zenz: 採点できませんでした (文脈 {context.Length} 文字・候補 {missing.Count} 件・{watch.ElapsedMilliseconds} ms)。変換エンジンの順のまま"
+                : $"zenz: 採点しました (文脈 {context.Length} 文字・候補 {missing.Count} 件・{watch.ElapsedMilliseconds} ms): {string.Join(" ", scored.Select(x => x.ToString("F2")))}");
         }
-        if (scores is null) return clause.Text;
-        ScoredClauses++;
+        var scores = list.Select(c => _scores.TryGetValue((context, clause.Reading, c), out var x) ? x : double.NaN).ToArray();
+        if (scores.Any(double.IsNaN)) return clause.Text;
 
         // 対数確率 - 事前 × 元の順位 の大きい順。同点なら元の順 (安定)
-        var order = Enumerable.Range(0, slots.Count)
+        var best = Enumerable.Range(0, list.Count)
             .OrderByDescending(j => scores[j] - _options.RankPrior * j)
             .ThenBy(j => j)
-            .ToList();
-        if (_ranked.Count >= _options.CacheSize) _ranked.Clear();
-        _ranked[clause.Reading] = order.Select(j => slots[j]).ToArray();
-        return slots[order[0]];
+            .First();
+        if (_lastContext.Count >= _options.CacheSize) _lastContext.Clear();
+        _lastContext[clause.Reading] = context;
+        return list[best];
     }
 
     /// <summary>末尾の n 文字 (サロゲートペアを割らない)。</summary>

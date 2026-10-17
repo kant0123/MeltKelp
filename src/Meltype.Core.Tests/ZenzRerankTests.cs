@@ -17,11 +17,15 @@ internal static class ZenzRerankTests
         public List<(string Context, string Reading, string[] Candidates)> Calls { get; } = [];
         public Func<string, string, IReadOnlyList<string>, IReadOnlyList<double>?> Scores { get; set; } = (_, _, c) => c.Select(_ => -1.0).ToArray();
 
+        /// <summary>1 回の採点にかかる時間 (ミリ秒)。</summary>
+        public int Delay { get; set; }
+
         public void EnsureLoading() => Loads++;
 
         public IReadOnlyList<double>? Score(string context, string reading, IReadOnlyList<string> candidates, long deadline)
         {
             Calls.Add((context, reading, candidates.ToArray()));
+            if (Delay > 0) Thread.Sleep(Delay);
             return Scores(context, reading, candidates);
         }
 
@@ -141,6 +145,34 @@ internal static class ZenzRerankTests
         converter.SetPrecedingText("劇団の千秋楽の");
         Assert.Equal("公園", converter.ConvertClauses("こうえん")!.Single().Text);
         Assert.Equal(0, scorer.Calls.Count);
+    }
+
+    /// <summary>文脈を渡すと先頭の候補が変わる変換エンジン (本物の Mozc も、上流の文脈で先頭を変える)。</summary>
+    private sealed class ContextSensitiveConverter : IKanjiConverter
+    {
+        public string? Convert(string hiragana) => null;
+        public IReadOnlyList<ConversionClause>? ConvertClauses(string hiragana, string? context = null) => [new("こうえん", context is null ? "公園" : "講演")];
+    }
+
+    [Test]
+    public static void Controller_ConvertWithContext_ScoresWithinOneBudget()
+    {
+        // CompositionController.ConvertWithContext は ConvertClauses を文脈あり・なしで 2 回呼ぶ。予算を呼ぶたびに取り直すと、
+        // 先頭の候補が違うので採点し直して、UI スレッドを予算の 2 倍止めていた (agy レビュー。予算 100ms・採点 120ms で 2 回・352ms)
+        var scorer = new FakeScorer { Delay = 120 };
+        var zenz = new ZenzRerankingConverter(new ContextSensitiveConverter(), _ => ["公園", "講演", "公演"], scorer, () => true, new ZenzRerankOptions { BudgetMs = 100 });
+        var k = new CompositionTests.Keyboard(converter: zenz, moreCandidates: zenz.Candidates);
+        k.Host.PrecedingText = "劇団の千秋楽の";
+        k.Type("kouenn ");
+        Assert.Equal(1, scorer.Calls.Count, "1 回の変換の採点は 1 つの予算の中だけ");
+
+        // 予算に余裕があっても、同じ候補を採点し直さない (候補ごとに控える。並びが違っても同じ)
+        scorer = new FakeScorer();
+        zenz = new ZenzRerankingConverter(new ContextSensitiveConverter(), _ => ["公園", "講演", "公演"], scorer, () => true);
+        k = new CompositionTests.Keyboard(converter: zenz, moreCandidates: zenz.Candidates);
+        k.Host.PrecedingText = "劇団の千秋楽の";
+        k.Type("kouenn ");
+        Assert.Equal(1, scorer.Calls.Count, string.Join(" / ", scorer.Calls.Select(c => string.Join(",", c.Candidates))));
     }
 
     [Test]
@@ -279,7 +311,8 @@ internal static class ZenzRerankTests
     [Test]
     public static void Rerank_CandidatesUnchangedWhenListChanged()
     {
-        // 採点した後に一覧が変わったら (Mozc の学習・変換エンジンの切り替え) 並べ替えない。変換できなければ null のまま
+        // 採点した後に一覧が変わっても (Mozc の学習・変換エンジンの切り替え)、採点した候補だけを、一覧の中の位置を事前にして並べる。
+        // 変換できなければ null のまま
         var lists = new Dictionary<string, string[]> { ["こうえん"] = ["公園", "講演", "公演"] };
         var scorer = new FakeScorer { Scores = (_, _, c) => c.Select(x => x == "公演" ? -0.1 : -9.0).ToArray() };
         var converter = new ZenzRerankingConverter(new FixedConverter(C("こうえん", "公園")), r => lists[r], scorer, () => true);
