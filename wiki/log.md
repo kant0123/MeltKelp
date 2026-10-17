@@ -62,3 +62,9 @@ grep "^## \[" wiki/log.md | tail -5
 - 更新: [[overview]], [[upstream-update-stop]]
 - 備考: #8。判定は `src/Meltype/UpstreamReport.cs` に置き、`AppInfo` の報告の URL 3 つ・トレイの「不具合の報告・提案...」
   「直した誤判定を報告...」に 1 行ずつ差し込んだ。「不具合の報告・提案...」は当初残していたが、ユーザーの判断で消した。
+
+## [2026-10-18] ingest | PR #15 agy レビューの merge hook が --repo / -R を見て別リポジトリの PR を判定する
+- 更新: [[overview]]
+- 備考: #14。hook は PR 番号だけを cwd のリポジトリの PR として引いていた。`--repo` / `-R` を `agy_review.py --check --repo` に渡し、
+  そのリポジトリの PR のレビュー記録を見る。別リポジトリでも判定は外さない。`review/README.md` にも説明を足した。
+  マージしないコマンドの文字列に反応する件は #6 のまま(未対応)。テンプレート側の hook も同じ作り。
