@@ -39,3 +39,9 @@ grep "^## \[" wiki/log.md | tail -5
   MeltKelp の履歴ではないので持ち込んでいない。imev(kant0123/imev)の wiki から、コードを読んでも分からない知見だけを
   書き直して移した(出典は各ページ)。zenz の並べ替え(#2)と自動更新の停止(#3)は未実装。
   main のブランチ保護は private の無料プランで 403 になり、掛けられていない([[overview]] の「運用」)。
+
+## [2026-10-17] ingest | PR #9 上流のリリースによる自動更新を止める
+- 新規: [[upstream-update-stop]]
+- 更新: [[overview]], [[build-install]]
+- 備考: #3。判定は `src/Meltype/UpstreamUpdate.cs` に置き、上流のファイルには 1 行ずつ 4 か所差し込んだ。
+  手元の .NET SDK が 9 だったので、winget で .NET 10 SDK(10.0.402)を入れてから `Meltype.Tests` を流した。
