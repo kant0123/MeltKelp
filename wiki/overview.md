@@ -80,7 +80,10 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
   (`docs/development_workflow.md`)。
 - **ブランチ保護**: 正は `.github/branch-protection.json`(必須チェックは `checks` と `core-tests`)。保護設定は
   GitHub 側にあり、リポジトリのファイルからは見えない。**`test.yml` のジョブ名を変えたら、このファイルと保護設定の
-  両方を直す**(`test.yml` の `checks` が一致を検査する)。private で無料プランの場合は保護を掛けられず、
-  マージを止めるのは hook と手順だけになる。
+  両方を直す**(`test.yml` の `checks` が一致を検査する)。
+  **2026-10-17 時点では保護は掛かっていない。** 適用を試すと「Upgrade to GitHub Pro or make this repository public」で
+  403 になった(private で無料プランのため)。CI が赤でも GitHub 上はマージできるので、マージを止めているのは
+  `pr-finish` の手順と `gh pr merge` の hook(agy レビューの記録の確認)だけ。GitHub Pro にするか public にしたら
+  `docs/development_workflow.md` のコマンドで適用する。
 - agy レビューは IME 向けのドメイン `ime`(`review/domain_invariants.json`)で回す。テンプレート既定の `general` は
   Web 向けで、変換を止めない・入力内容を出さない・UI スレッドの時間上限・上流との差分の最小化の観点を持たない。

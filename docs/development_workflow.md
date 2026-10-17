@@ -30,8 +30,9 @@ flowchart TD
     gate{"CI 緑?"}
     review["agy レビュー<br/>python review/agy_review.py"]
     verdict{"APPROVE?"}
-    triage{"指摘を評価<br/>妥当な指摘がある?"}
-    fp["誤検知を gemini-review に起票<br/>--triage で評価を記録"]
+    triage{"指摘を 1 件ずつ評価"}
+    fp["誤検知は gemini-review、スコープ外・未確認は MeltKelp に起票<br/>--triage で評価を記録"]
+    report["起票・評価を記録し、人間に報告<br/>(マージしない)"]
     merge["gh pr merge &lt;PR番号&gt; --merge<br/>(エージェントの仕事はここまで)"]
     mainCommit["main に merge commit"]
     mainPush["main への push"]
@@ -46,8 +47,9 @@ flowchart TD
     gate -->|Yes| review --> verdict
     verdict -->|Yes| merge
     verdict -->|差し戻し| triage
-    triage -->|Yes: 修正して push| worktree
-    triage -->|No: すべて誤検知| fp --> merge
+    triage -->|成立を確かめた指摘あり: 修正して push| worktree
+    triage -->|すべて誤検知・スコープ外・未確認 WARNING| fp --> merge
+    triage -->|未確認の CRITICAL あり| report
     merge --> mainCommit --> mainPush --> mainTests
 ```
 

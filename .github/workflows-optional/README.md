@@ -2,8 +2,8 @@
 
 このディレクトリのファイルは **`.github/workflows/` に置かない限り実行されない**
 (GitHub Actions は `.github/workflows/` 直下のみを見る)。導入したいものだけ
-`.github/workflows/` にコピーする。`scripts/setup.ps1` / `scripts/setup.sh` を使うと
-対話形式でコピーできる。
+`.github/workflows/` にコピーする(MeltKelp ではテンプレートのセットアップスクリプトを適用時に使い、
+その後は持っていないので、手でコピーする)。
 
 | ファイル | 用途 | 前提 |
 | --- | --- | --- |
@@ -20,5 +20,5 @@
 success になるのを待つため、相乗りさせると Wiki の不整合 1 件で
 本番デプロイまで止まる。
 
-導入手順の詳細は [docs/development_workflow.md](../../docs/development_workflow.md) の
-「CI/CD の選択」を参照。
+MeltKelp は CD を持たないので、`wiki-lint` 相当の検査は `test.yml` の `checks` に入れてある。
+CI の全体は [docs/development_workflow.md](../../docs/development_workflow.md) の「CI」を参照。

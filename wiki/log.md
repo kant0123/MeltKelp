@@ -38,3 +38,4 @@ grep "^## \[" wiki/log.md | tail -5
 - 備考: #1。テンプレート(kant0123/ai-coding-template-mod-gemini-review)の log にあったテンプレート自身のエントリは、
   MeltKelp の履歴ではないので持ち込んでいない。imev(kant0123/imev)の wiki から、コードを読んでも分からない知見だけを
   書き直して移した(出典は各ページ)。zenz の並べ替え(#2)と自動更新の停止(#3)は未実装。
+  main のブランチ保護は private の無料プランで 403 になり、掛けられていない([[overview]] の「運用」)。

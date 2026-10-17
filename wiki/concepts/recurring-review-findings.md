@@ -100,6 +100,8 @@ push 前に確かめること:
 - imev PR #23 — `.github/workflows/test.yml` — 「ジョブ名を変えたら branch-protection.json も直す」をコメントと Wiki にだけ書き、一致の検査を CI に足していなかった(機械で判定できるルール)
 - imev PR #21 — `CLAUDE.md` スキル一覧・`docs/development_workflow.md` — pr-finish の「デプロイ確認」と必須チェック名 `test` を直したが、同じことを書いた CLAUDE.md の一覧行と docs の説明文を直していなかった
 - imev PR #19 — `.agent/skills/pr-finish/SKILL.md` — 「前提の確認」に「PR 本文に実機で確かめた例文と結果を書く」を足したが、同じファイルの PR 本文テンプレートに書く欄が無かった
+- MeltKelp PR #4 — `docs/development_workflow.md` 全体像のフローチャート — テンプレートから持ち込んだ図が、未確認の CRITICAL でもマージに至る経路だけを描き、「マージせず人間に報告」の経路が無かった(テンプレートの PR #33 で直した種類が、別の図に残っていた)
+- MeltKelp PR #4 — `.github/workflows-optional/README.md` — `docs/development_workflow.md` の見出し「CI/CD の選択」を消したが、そこを参照する別ファイルの案内を直していなかった
 
 ### 主目的のページ以外に触った Wiki の付随更新を漏らす
 
