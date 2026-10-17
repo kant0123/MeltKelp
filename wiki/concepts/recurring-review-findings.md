@@ -102,6 +102,25 @@ push 前に確かめること:
 - imev PR #19 — `.agent/skills/pr-finish/SKILL.md` — 「前提の確認」に「PR 本文に実機で確かめた例文と結果を書く」を足したが、同じファイルの PR 本文テンプレートに書く欄が無かった
 - MeltKelp PR #4 — `docs/development_workflow.md` 全体像のフローチャート — テンプレートから持ち込んだ図が、未確認の CRITICAL でもマージに至る経路だけを描き、「マージせず人間に報告」の経路が無かった(テンプレートの PR #33 で直した種類が、別の図に残っていた)
 - MeltKelp PR #4 — `.github/workflows-optional/README.md` — `docs/development_workflow.md` の見出し「CI/CD の選択」を消したが、そこを参照する別ファイルの案内を直していなかった
+- PR #47 — `.agent/rules/git-workflow.md` / `knowledge-wiki.md` — `CLAUDE.md` の写しとして足したが、agy レビュー・両論併記・lint はコミット後の不変条件が抜けていた(外部レビューで発覚)
+
+### 外部ツールの設定形式を一次資料で確かめずに書く
+
+他ツール(Antigravity・GitHub Actions 等)の設定ファイルの形を、要約・記憶・似たツールからの類推で書く。
+値が配列かオブジェクトか、作業ディレクトリはどこか、といった細部が違っていても読む側は気付けず、
+テンプレートどおりに作った設定が黙って効かない。
+
+push 前に確かめること:
+
+- 設定例の各キーと値の型(配列か・オブジェクトか)を、公式ドキュメントの例と 1 つずつ突き合わせたか
+- パスを含む設定は、どこを起点に解決されるか(リポジトリ直下か・設定ファイルの場所か)を確かめたか
+- 組み込みの既定(シェル・ランナーの設定)を自前の指定に置き換えるなら、既定が暗黙に足していたもの
+  (エラーで止める・終了コードを伝える)を一次資料で確かめ、自分で足したか
+
+実例:
+
+- PR #47 — `.agent/skills/agent-config-manager/SKILL.md` Hook テンプレート — `PreToolUse` を配列ではなくオブジェクトで書き、コマンドのパスも作業ディレクトリ(`hooks.json` の場所)を考えていなかった
+- MeltKelp PR #11 — `.github/workflows-optional/deploy.yml`(テンプレート PR #48 から持ち込み)— シェル行を自前指定にして、組み込みの `shell: powershell` / `pwsh` が前に足す `$ErrorActionPreference = 'stop'` を失い、デプロイスクリプトが無くても exit 0 で緑になっていた(手元の Windows PowerShell 5.1 で再現)
 
 ### 主目的のページ以外に触った Wiki の付随更新を漏らす
 

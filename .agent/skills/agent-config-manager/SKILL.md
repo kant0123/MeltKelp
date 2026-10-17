@@ -167,27 +167,32 @@ Q8. 人間の介入なしで定期的に自動実行させたいか？
 
 ### Hook テンプレート
 
-汎用ツール向け(`.agents/hooks.json`):
+Antigravity 向け(`.agents/hooks.json`):
 ```json
 {
-  "hooks": [
-    {
-      "event": "after_tool_call",
-      "tool": "edit_file",
-      "instruction": "<ファイル編集後にやること>"
-    },
-    {
-      "event": "before_tool_call",
-      "tool": "run_command",
-      "instruction": "<コマンド実行前にやること>"
-    },
-    {
-      "event": "on_session_start",
-      "instruction": "<セッション開始時にやること>"
-    }
-  ]
+  "<フック名>": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          { "type": "command", "command": "bash hooks/<script>.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "SessionStart": [
+      { "type": "command", "command": "bash hooks/<script>.sh" }
+    ]
+  }
 }
 ```
+トップレベルのキーはフック名で、その下にイベントを置く。各イベントの値は**配列**。
+`PreToolUse` / `PostToolUse` は `matcher`(ツール名の正規表現。`run_command` 等)と `hooks` で
+包んだグループの配列、`SessionStart` / `PreInvocation` / `PostInvocation` / `Stop` はハンドラを
+直接並べた配列。コマンドの作業ディレクトリは `hooks.json` のあるディレクトリ(`timeout` の既定は 30 秒)。
+コマンドは標準入力から JSON を受け取り(ツール名は `toolCall.name`、引数は `toolCall.args`)、
+標準出力に `{"decision": "allow" | "deny" | "ask", "reason": "<理由>"}` を返す。
+**Claude Code の hook とは入出力の形が違う**(Claude Code は `tool_input` を受け取り、`exit 2` + stderr で止める)
+ので、`.claude/hooks/` のスクリプトはそのままでは使えない。
 
 Claude Code 向け(`.claude/settings.json`):
 ```json
