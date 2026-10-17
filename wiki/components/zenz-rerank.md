@@ -96,7 +96,7 @@ imev のプロンプトのタグの誤り(U+E200〜U+E202。正しくは U+EE00�
 
 ## GPU(Vulkan)で採点する
 
-#29・#31。`Install-ZenzRuntime.ps1 -Gpu` で Vulkan 版を `zenzulkan` に、`-Gpu` なしで CPU 版を `zenz\cpu` に置く。どちらを読み込むかは
+#29・#31。`Install-ZenzRuntime.ps1 -Gpu` で Vulkan 版を `zenz\vulkan` に、`-Gpu` なしで CPU 版を `zenz\cpu` に置く。どちらを読み込むかは
 設定「zenz を GPU で動かす」(`ZenzUseGpu`、既定 ON)で選ぶ(`LlamaZenzScorer.LibraryDirectory()`)。ON なら Vulkan 版(無ければ CPU 版)で、
 GPU が見つかればモデルを全部 GPU に載せる。OFF なら CPU 版だけを使い、Vulkan 版には触らない(CPU 版が無ければ並べ替えをしない)。
 

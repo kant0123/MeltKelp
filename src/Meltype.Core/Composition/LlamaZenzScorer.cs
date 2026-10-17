@@ -15,7 +15,7 @@ namespace Meltype.Composition;
 ///   imev は U+E200〜U+E202 を使っていて (誤り)、対数確率が全体に 7 ほど低く出ていた (imev #33 の「鈍さ」)。文脈 + 読みの KV を系列 0 に置いて使い回し、
 ///   候補ごとに系列を分けて (seq_cp) 1 回の decode でまとめて採点する。終わったら (途中で失敗しても) 分けた系列を消す。
 /// ランタイムは %LOCALAPPDATA%\Meltype\zenz に置く (scripts/Install-ZenzRuntime.ps1)。モデルは zenz に 1 つ、llama.dll・ggml*.dll は
-/// CPU 版を zenz\cpu、Vulkan 版を zenzulkan に並べて置き、設定 (ZenzUseGpu) でどちらを読み込むかを選ぶ (MeltKelp #31。LibraryDirectory())。
+/// CPU 版を zenz\cpu、Vulkan 版を zenz\vulkan に並べて置き、設定 (ZenzUseGpu) でどちらを読み込むかを選ぶ (MeltKelp #31。LibraryDirectory())。
 /// llama.dll の構造体 (llama_model_params など) は版ごとに形が変わり、合わない DLL を呼ぶと Meltype.exe ごと落ちるので、
 /// 中身を確かめた b4846 の llama.dll (SHA-256 が一致するもの) しか読み込まない。無い・合わない・読み込めなければ採点しない (フェイルオープン)。
 /// Vulkan 版を読み込んで GPU が見つかれば、モデルを全部 GPU に載せる (見つからない・載せられなければ CPU)。

@@ -7,7 +7,7 @@
   zenz-v3.1-small のモデル (ggml-model-Q5_K_M.gguf)。Meltype.exe (LlamaZenzScorer) は、llama.dll の SHA-256 がこれらの版のものと
   一致するときだけ読み込む (構造体の形が版ごとに変わり、合わない DLL を呼ぶと Meltype.exe ごと落ちるため)。版を変えるならコードの
   LlamaBuilds も直す。
-  DLL は CPU 版を zenz\cpu、Vulkan 版を zenzulkan に置き、モデルは zenz に 1 つ置く。両方置いておけば、どちらを使うかは
+  DLL は CPU 版を zenz\cpu、Vulkan 版を zenz\vulkan に置き、モデルは zenz に 1 つ置く。両方置いておけば、どちらを使うかは
   Meltype の設定「zenz を GPU で動かす」で選べる (MeltKelp #29・#31)。両方置くには、-Gpu を付けて 1 回・付けずに 1 回実行する。
   #31 より前の置き方 (zenz の直下の DLL) は消す。
 
@@ -26,7 +26,7 @@
   置き場所。既定は %LOCALAPPDATA%\Meltype\zenz。
 
 .PARAMETER Gpu
-  Vulkan 版 (llama-b4846-bin-win-vulkan-x64.zip) を zenzulkan に置く。付けなければ CPU 版 (llama-b4846-bin-win-avx-x64.zip) を zenz\cpu に置く。
+  Vulkan 版 (llama-b4846-bin-win-vulkan-x64.zip) を zenz\vulkan に置く。付けなければ CPU 版 (llama-b4846-bin-win-avx-x64.zip) を zenz\cpu に置く。
 #>
 param(
     [string]$Source,
