@@ -59,8 +59,9 @@
 - **`native/tip/` とパイプのやり取りの形式を変えない。** 上流が将来署名した Meltype IME の DLL をそのまま差し替えて
   使えるようにするため(自前ビルドの署名の無い TIP DLL は、ESET の保護で Chrome に読み込まれない。`wiki/operations/build-install.md`)。
   MeltKelp の機能は `Meltype.exe` 側(C#)で完結させる。
-- **上流のリリースによる自動更新を止める。** `src/Meltype/Updater.cs` は上流の GitHub のリリースを 6 時間ごとに見て、
-  MeltKelp を公式版で上書きする。止める実装は #3。それまでは、入れた MeltKelp の設定で自動更新を OFF にしておく。
+- **上流のリリースによる自動更新を止めたままにする。** `src/Meltype/Updater.cs` は上流の GitHub のリリースを見て MeltKelp を
+  公式版で上書きする。`src/Meltype/UpstreamUpdate.cs` の判定と `Updater.cs` などへの 1 行の差し込みで止めている(#3)。
+  上流の取り込みで差し込みを落とさない(`wiki/concepts/upstream-update-stop.md`)。
 - **上流の取り込みは worktree で `git merge upstream/main` し、PR で入れる**(rebase・squash しない。上流の履歴を保つ)。
 - **ライセンスは GPL-3.0 のまま。** 上流の著作権表示・`LICENSE`・`THIRD-PARTY-NOTICES.md` を消さない。MeltKelp が足す
   ソースにも `SPDX-License-Identifier: GPL-3.0-or-later` を付ける。

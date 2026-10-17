@@ -349,7 +349,8 @@ internal static class WindowsTests
         var controls = Descendants(form).ToList();
         // 設定画面に出す bool の項目は、すべてスイッチ (ON/OFF だけのプルダウン・チェックボックスを残さない)
         var settings = typeof(Settings).GetProperties().Count(p => p.PropertyType == typeof(bool) && p.CanWrite &&
-            p.GetCustomAttributes(typeof(System.ComponentModel.BrowsableAttribute), false).OfType<System.ComponentModel.BrowsableAttribute>().FirstOrDefault()?.Browsable != false);
+            p.GetCustomAttributes(typeof(System.ComponentModel.BrowsableAttribute), false).OfType<System.ComponentModel.BrowsableAttribute>().FirstOrDefault()?.Browsable != false
+            && UpstreamUpdate.ShowsSetting(p)); // MeltKelp: 「自動で更新する」は出さない (MeltKelp #3)
         Assert.True(settings >= 30, $"ON/OFF の設定を読めている: {settings}");
         Assert.Equal(settings + 2, controls.OfType<UI.ToggleSwitch>().Count(), "ON/OFF の設定 + 上の表示オプション 2 つ");
         Assert.True(!controls.OfType<ComboBox>().Any(c => c.Items.Count == 2 && c.Items.Contains("ON")), "ON/OFF だけのプルダウンが残っていない");

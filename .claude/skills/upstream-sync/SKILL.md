@@ -33,7 +33,7 @@ git diff --name-status origin/main...upstream/main -- .github/workflows
   - `.github/workflows/` — 足されたワークフローは手順 5 で無効にするか決める
   - `native/tip/`・`src/Meltype/Tip/` — Meltype IME とのパイプの形式。上流の変更はそのまま受け入れる(上流の署名した DLL と
     合わせるのが目的なので、MeltKelp 側で戻さない)
-  - `src/Meltype/Updater.cs`・`packaging/update.ps1`・`packaging/install.ps1` — 自動更新を止める仕組み(#3)が効き続けるか
+  - `src/Meltype/Updater.cs`・`packaging/update.ps1`・`packaging/install.ps1` — 自動更新を止める差し込み(#3。`wiki/concepts/upstream-update-stop.md`)が効き続けるか。`Updater.cs` が衝突したら同じページの「上流の取り込みで衝突したら」
   - `src/Meltype/Composition/CompositionService.cs`・`src/Meltype.Core/Composition/HybridConverter.cs`・
     `src/Meltype.Core/Composition/KanjiConversion.cs` — zenz の差し込み口と、MeltKelp が実装するインターフェース(#2)
   - `src/Meltype.Core/Config/Settings.cs` — 設定キーの意味・既定値
@@ -89,7 +89,7 @@ node --test .claude/hooks/test/*.test.mjs
 
 そのうえで、ビルドして入れ直し、**メモ帳と Chrome で、Meltype IME と Meltype キーボードの両方で**変換を確かめる
 (`wiki/operations/build-install.md`)。上流の変更は CI だけでは実際のアプリでの入力まで確かめられない。
-入れ直すと上流の自動更新の設定が初期値(ON)に戻っていないかも見る(#3 が入るまでは手で OFF にする)。
+入れ直したら、上流の更新が止まったままかも見る(トレイの「更新」に「自動で更新する」が無く、「今すぐ更新を確認」で止めている旨が出る)。
 
 ## 5. 上流が足したワークフローを止める
 

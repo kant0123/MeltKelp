@@ -288,6 +288,7 @@ internal sealed class SettingsForm : Form, IMessageFilter
     {
         var properties = typeof(Settings).GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanWrite && p.GetCustomAttribute<BrowsableAttribute>()?.Browsable != false)
+            .Where(UpstreamUpdate.ShowsSetting) // MeltKelp: 上流の更新を止めているので「自動で更新する」を出さない (MeltKelp #3)
             .GroupBy(p => p.GetCustomAttribute<CategoryAttribute>()?.Category ?? "その他")
             .OrderBy(g => g.Key, StringComparer.Ordinal);
         foreach (var category in properties)

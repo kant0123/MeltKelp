@@ -38,6 +38,7 @@ internal sealed class Updater : IDisposable
     /// <summary>ダウンロード済みで、今より新しい版 (無ければ null)。</summary>
     public static (string Version, string Folder)? Staged()
     {
+        if (!UpstreamUpdate.Allowed) return null; // MeltKelp: ダウンロード済みの上流の版を入れない (MeltKelp #3)
         try
         {
             if (!File.Exists(ReadyFile)) return null;
@@ -167,6 +168,7 @@ internal sealed class Updater : IDisposable
     /// <summary>update.ps1 を実行する。戻り値は利用者に見せる結果。</summary>
     private string? Run()
     {
+        if (!UpstreamUpdate.Allowed) return UpstreamUpdate.Message; // MeltKelp: 上流のリリースを見に行かない (MeltKelp #3)
         if (!File.Exists(Script) || AppInfo.Version == "?") return null;
         if (Interlocked.Exchange(ref _running, 1) == 1) return null;
         try
