@@ -170,7 +170,7 @@ GitHub の画面から押されたマージは素通しになる。
 | 項目 | 内容 |
 | --- | --- |
 | 契機 | `pull_request` と main への `push` |
-| `checks` | 必須チェック名とジョブ名の一致・Python の構文・agy レビューの回帰テスト・hook のテスト・Wiki の整合・シェルの構文・PowerShell の構文と BOM |
+| `checks` | 必須チェック名とジョブ名の一致・Python の構文・agy レビューの回帰テスト・hook とコード参照の解釈のテスト・Wiki の整合・シェルの構文・PowerShell の構文と BOM |
 | `core-tests` | `Meltype.Core.Tests`(Linux。品質テストの基準を含む) |
 
 どの検査も「対象 0 件で成功」に落ちないようにしてある。上流のファイルで BOM が無い `.ps1` は、直すと上流の

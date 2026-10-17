@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CODE_REF, codeSpans, collect, isPlaceholder, parseFrontmatter, stripNonLinks } from './wiki-refs.js';
+import { codeSpans, collect, isPlaceholder, parseCodeRef, parseFrontmatter, stripNonLinks } from './wiki-refs.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const WIKI = join(ROOT, 'wiki');
@@ -35,7 +35,7 @@ const TYPES = new Set(Object.values(DIR_TYPE));
 // 参照先が無くてよい(CLAUDE.md / docs/wiki_workflow.md の取り決め)。
 const PLANNED_HEADING = /^#{1,6}\s*未作成ページ/m;
 
-// コード参照の記法(CODE_REF)とページの解釈は scripts/wiki-refs.js にある(hook と共有するため)。
+// コード参照の記法(CODE_REF / parseCodeRef())とページの解釈は scripts/wiki-refs.js にある(hook と共有するため)。
 
 // 記号名が指す行と、書かれている行番号のズレをどこまで許すか。
 const ANCHOR_SLACK = 5;
@@ -232,9 +232,9 @@ const readLines = (rel) => {
 
 for (const page of pages.values()) {
   for (const span of codeSpans(page.text)) {
-    const match = CODE_REF.exec(span);
-    if (!match) continue;
-    const [, path, lineText, anchor] = match;
+    const ref = parseCodeRef(span, ROOT);
+    if (!ref) continue;
+    const { path, line, anchor } = ref;
     // 記入例のプレースホルダ(<path/to/file.js:123>)は対象外。
     if (path.startsWith('<')) continue;
     const lines = readLines(path);
@@ -242,7 +242,6 @@ for (const page of pages.values()) {
       fail(page.rel, `コード参照 ${span} のファイルが存在しない`);
       continue;
     }
-    const line = Number(lineText);
     if (line < 1 || line > lines.length) {
       fail(page.rel, `コード参照 ${span} の行番号がファイルの行数 (${lines.length}) を超えている`);
       continue;

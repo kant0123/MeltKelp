@@ -213,8 +213,8 @@ PR の CI が緑になった後、マージの前に、差分を agy (Antigravit
 ## プロジェクト固有ルール
 
 - テストコマンド: `dotnet run --project src/Meltype.Tests -c Release`(Windows。共通部分のテストも含む)、
-  `python -m pytest review/tests -q`、`node --test .claude/hooks/test/*.test.mjs`。
-  CI は `test.yml`(Linux で `Meltype.Core.Tests`・レビュー基盤・hook・構文・`.ps1` の BOM)と上流の `build.yml`
+  `python -m pytest review/tests -q`、`node --test .claude/hooks/test/*.test.mjs scripts/test/*.test.mjs`。
+  CI は `test.yml`(Linux で `Meltype.Core.Tests`・レビュー基盤・hook とコード参照の解釈・構文・`.ps1` の BOM)と上流の `build.yml`
   (Windows でビルドと `Meltype.Tests`。`src/` などを変えたときだけ走る)。変えたら `pr-finish` スキルの「前提の確認」も合わせる
 - 命名規約: C# と C++ は上流に合わせる(周りのコードの書き方・コメントの密度・日本語のコメント)。Python は snake_case
 - コミットメッセージの言語: 日本語

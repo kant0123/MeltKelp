@@ -7,12 +7,35 @@
 //
 // 読み込んだだけでは何も実行しない(副作用なし)。
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 // コード参照 `path/to/file.js:123 記号名` の記法。記号名は任意だが、付いていれば検証する。
 // 行番号だけのアンカーは編集のたびに黙ってずれるので、記号名を主・行番号を補助として扱う。
-export const CODE_REF = /^([\w./-]+\/[\w.-]+\.[a-zA-Z0-9]{1,5}):(\d+)(?:\s+(.+))?$/;
+// パスのスラッシュは任意(ルート直下の `CLAUDE.md:12` も書ける)。この形だけでは
+// `example.com:443` と見分けが付かないので、参照かどうかは parseCodeRef() で決める。
+export const CODE_REF = /^([\w./-]+\.[a-zA-Z0-9]{1,5}):(\d+)(?:\s+(.+))?$/;
+
+const isFile = (path) => {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * コードスパンの中身をコード参照として読む。参照でなければ null。
+ * スラッシュも記号名も無い `name.ext:N` は、root 直下にそのファイルが実在するときだけ参照とみなす。
+ * 実在を問わないと、`example.com:443` のような host:port を lint が「存在しないファイルへの参照」で落とす。
+ */
+export function parseCodeRef(span, root) {
+  const match = CODE_REF.exec(span);
+  if (!match) return null;
+  const [, path, line, anchor] = match;
+  if (!path.includes('/') && !anchor && !isFile(join(root, path))) return null;
+  return { path, line: Number(line), anchor };
+}
 
 /** wiki/ 配下の .md を再帰的に集める(テンプレートは検査対象外)。 */
 export function collect(dir) {
@@ -78,11 +101,11 @@ export function pagesByCodeFile(root) {
     const name = rel.split('/').pop().slice(0, -3);
     const summary = parseFrontmatter(text)?.summary ?? '';
     for (const span of codeSpans(text)) {
-      const match = CODE_REF.exec(span);
-      if (!match || match[1].startsWith('<')) continue;
-      const pages = byFile.get(match[1]) ?? [];
+      const ref = parseCodeRef(span, root);
+      if (!ref || ref.path.startsWith('<')) continue;
+      const pages = byFile.get(ref.path) ?? [];
       if (!pages.some((page) => page.name === name)) pages.push({ name, rel, summary });
-      byFile.set(match[1], pages);
+      byFile.set(ref.path, pages);
     }
   }
   return byFile;

@@ -21,7 +21,7 @@ description: >
 ```bash
 dotnet run --project src/Meltype.Tests -c Release   # src/ を触ったとき(Windows。共通部分のテストも含む)
 python -m pytest review/tests -q
-node --test .claude/hooks/test/*.test.mjs
+node --test .claude/hooks/test/*.test.mjs scripts/test/*.test.mjs
 git status
 ```
 

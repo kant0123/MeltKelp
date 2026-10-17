@@ -84,7 +84,7 @@ git diff upstream/main -- src native packaging tools dictionaries | head -100
 dotnet build Meltype.sln -c Release
 dotnet run --project src/Meltype.Tests -c Release
 python -m pytest review/tests -q
-node --test .claude/hooks/test/*.test.mjs
+node --test .claude/hooks/test/*.test.mjs scripts/test/*.test.mjs
 ```
 
 そのうえで、ビルドして入れ直し、**メモ帳と Chrome で、Meltype IME と Meltype キーボードの両方で**変換を確かめる
