@@ -253,6 +253,19 @@ internal static class ZenzRerankTests
     }
 
     [Test]
+    public static void HybridConstructor_StartsLoadingOnlyWhenEnabled()
+    {
+        // アプリで使う HybridConverter を包む形は、作った時点で読み込みを始める (起動直後の 1 回目から並べ替える)
+        var hybrid = new HybridConverter(() => Meltype.Config.ConversionEngine.System, null, new FixedConverter(C("こうえん", "公園")), null);
+        var scorer = new FakeScorer();
+        _ = new ZenzRerankingConverter(hybrid, scorer, () => true);
+        Assert.Equal(1, scorer.Loads);
+        var off = new FakeScorer();
+        _ = new ZenzRerankingConverter(hybrid, off, () => false);
+        Assert.Equal(0, off.Loads, "設定が OFF なら読み込まない");
+    }
+
+    [Test]
     public static void Learn_PassesThrough()
     {
         var inner = new FixedConverter(C("こうえん", "公園"));

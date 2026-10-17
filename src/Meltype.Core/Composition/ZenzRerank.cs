@@ -75,9 +75,15 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
     private readonly Dictionary<string, string[]> _ranked = new(StringComparer.Ordinal);
     private string? _precedingText;
 
-    /// <summary>HybridConverter を包む (候補の一覧も HybridConverter から取る)。</summary>
+    /// <summary>
+    /// HybridConverter を包む (候補の一覧も HybridConverter から取る)。アプリの起動時に作るので、ここでモデルの読み込みを始める
+    /// (最初の変換で始めると、起動直後の 1 回目の変換が並べ替わらない)。
+    /// </summary>
     public ZenzRerankingConverter(HybridConverter inner, IConversionScorer scorer, Func<bool> enabled, ZenzRerankOptions? options = null)
-        : this(inner, inner.Candidates, scorer, enabled, options) { }
+        : this(inner, inner.Candidates, scorer, enabled, options)
+    {
+        if (enabled()) scorer.EnsureLoading();
+    }
 
     /// <summary>直近の変換で採点した文節の数 (テスト・計測用)。</summary>
     public int ScoredClauses { get; private set; }
