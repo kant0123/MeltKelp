@@ -18,7 +18,7 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview]
 | `src/Meltype.Core/Composition/ZenzRerank.cs:68 ZenzRerankingConverter` | デコレーター本体。`Choose()` が 1 文節分の選び直し、`Candidates()` が ↑↓ の一覧の並べ替え |
 | `src/Meltype.Core/Composition/LlamaZenzScorer.cs:214 Rank()` | 採点。imev の `LlmScorer::Impl::Rank()` を C# に移したもの。`Load()` が版の確認と読み込み |
 | `src/Meltype.Core/Composition/CompositionController.cs:1393 ConvertJapanese()` | 差し込み口: 変換の直前に `_precedingText` を渡す 1 行 |
-| `src/Meltype/Composition/CompositionService.cs:84 CompositionService()` | 差し込み口: `HybridConverter` を包む |
+| `src/Meltype/Composition/CompositionService.cs:37 CompositionService()` | 差し込み口: コンストラクターの中(84 行目あたり)で `HybridConverter` を包む |
 | `scripts/Install-ZenzRuntime.ps1` | ランタイムを `%LOCALAPPDATA%\Meltype\zenz` に置く |
 
 上流のファイルへの変更は、ほかに `Settings`・`CompositionOptions` の `partial`(設定の `ZenzRerank` を別ファイルで足すため)、
