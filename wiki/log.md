@@ -53,6 +53,6 @@ grep "^## \[" wiki/log.md | tail -5
 ## [2026-10-17] ingest | PR #11 テンプレートの更新(コード参照の解釈・hooks.json の形・.agent/rules の写し)を取り込む
 - 更新: [[recurring-review-findings]](テンプレート PR #47 の実例と、種類「外部ツールの設定形式を一次資料で確かめずに書く」)
 - 備考: #10。PR #4 で適用したテンプレートは PR #42 までの版だった。テンプレート PR #47・#48 のうち、`README.md`・`selfcheck.yml`・`deploy/`・
-  `scripts/setup.*`(PR #4 で持ち込んでいないもの)以外を取り込んだ。コード参照はルート直下のファイル(`CLAUDE.md:12`)も
+  `scripts/setup.*`(PR #4 で持ち込んでいないもの)以外を取り込んだ。コード参照はルート直下のファイル(`CLAUDE.md` など)を指すものも
   書けるようになった(スラッシュも記号名も無いものは、ファイルが実在するときだけ参照として数える)。
   `.agent/rules/` は MeltKelp の `CLAUDE.md` の写しとして書き直した(フォークの不変条件・実機確認・agy レビュー必須を含む)。
