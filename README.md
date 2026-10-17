@@ -1,22 +1,9 @@
-<p align="center">
-  <img src="docs/images/logo.png" alt="Meltype" width="360"><br>
-  <sub>Logo by <a href="https://github.com/Crysta1221">@Crysta1221</a> (Meltype のロゴ)</sub>
-</p>
+# MeltKelp(とろろ昆布)
 
-<h1 align="center">MeltKelp(とろろ昆布)</h1>
+**半角/全角 キーを押さずに打てる日本語入力 Meltype の、個人用フォーク。**
+漢字変換の候補を、小型の言語モデル zenz で文脈つきに並べ替えることを目指しています。
 
-<p align="center"><b>半角/全角 キーを押さずに打てる日本語入力 Meltype の、個人用フォーク。</b><br>
-漢字変換の候補を、小型の言語モデル zenz で文脈つきに並べ替えることを目指しています。</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Windows-10%20%2F%2011%20(64bit)-5ec4f0?logo=windows&logoColor=white" alt="Windows 10 / 11">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-7a96f0" alt="license"></a>
-  <img src="https://img.shields.io/badge/%E9%85%8D%E5%B8%83-%E3%81%97%E3%81%AA%E3%81%84-ff8ab4" alt="配布しない">
-</p>
-
-<p align="center">
-  <img src="docs/images/demo.svg" alt="kyouhagoogledekensaku と打つと、今日はgoogleで検索 になる" width="640">
-</p>
+対応 OS は Windows 10 / 11(64bit)。ライセンスは GPL-3.0。
 
 ## これは何か
 
