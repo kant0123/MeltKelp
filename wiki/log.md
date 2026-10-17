@@ -62,3 +62,8 @@ grep "^## \[" wiki/log.md | tail -5
 - 更新: [[overview]], [[upstream-update-stop]]
 - 備考: #8。判定は `src/Meltype/UpstreamReport.cs` に置き、`AppInfo` の報告の URL 3 つ・トレイの「不具合の報告・提案...」
   「直した誤判定を報告...」に 1 行ずつ差し込んだ。「不具合の報告・提案...」は当初残していたが、ユーザーの判断で消した。
+
+## [2026-10-18] ingest | PR #NN クリップボードのテストが時々落ちるのを直す
+- 更新: [[build-install]]
+- 備考: #13。上流のテスト(`WindowsTests.cs`)の待ち方だけを変えた。落ちる頻度と原因(`cbdhsvc` が掴む・`Thread.Sleep` で止まる)は
+  [[build-install]] の落とし穴に書いた。
