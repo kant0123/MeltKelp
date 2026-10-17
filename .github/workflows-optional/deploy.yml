@@ -55,12 +55,22 @@ jobs:
       # 引数は渡さず環境変数で受け渡す。5.1 から外部コマンドに渡すと空文字列が消え、
       # 引用符を含む値(APP_RESTART_CMD)が途中で割れる。スクリプトの既定値が同じ環境変数を読む。
       # run: の中は ASCII だけにする(一時ファイルを 5.1 がどの文字コードで読むかに依存しないため)。
+      #
+      # シェル行を自前で指定すると、組み込みの shell: powershell / pwsh が前に足す
+      # $ErrorActionPreference = 'stop' が付かない。無いと、スクリプトが見つからない・5.1 で動かした
+      # スクリプトが Write-Error だけで終わる、といった失敗でも $LASTEXITCODE が空のまま exit 0 になり、
+      # デプロイが緑に倒れる(手元の 5.1 で再現)。先頭で自分で付け、スクリプトの有無も先に確かめる。
       - name: 自動デプロイを実行
         id: deploy
         shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
+          $ErrorActionPreference = 'Stop'
           if (-not $env:APP_REPO_PATH) { $env:APP_REPO_PATH = 'C:\path\to\production\checkout' }
           $script = Join-Path $env:APP_REPO_PATH 'deploy\auto_deploy.ps1'
+          if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+            Write-Host "::error::deploy script not found: $script"
+            exit 1
+          }
           if (Get-Command pwsh -ErrorAction SilentlyContinue) {
             & pwsh -NoProfile -ExecutionPolicy Bypass -File $script
           } else {
@@ -74,6 +84,7 @@ jobs:
         if: always()
         shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
+          $ErrorActionPreference = 'Stop'
           $deployed = "${{ steps.deploy.outputs.deployed }}"
           $status = "${{ steps.deploy.outputs.status }}"
           Write-Host "::notice::deploy result: deployed=$deployed status=$status"
