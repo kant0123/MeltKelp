@@ -74,6 +74,12 @@ grep "^## \[" wiki/log.md | tail -5
 - 備考: #13。上流のテスト(`WindowsTests.cs`)の待ち方だけを変えた。落ちる頻度と原因(`cbdhsvc` が掴む・`Thread.Sleep` で止まる)は
   [[build-install]] の落とし穴に書いた。
 
+## [2026-10-18] ingest | PR #19 README を MeltKelp 向けに書き直す
+- 更新: [[overview]]
+- 備考: #18。README が上流のまま(上流のリリース・Discord・Sponsors・協力者・報告の案内)で、MeltKelp の実態と食い違っていた。
+  何であるか・上流との関係・ビルドして入れる手順(詳細は [[build-install]])・開発の入口に置き換え、zenz の並べ替えが未実装(#2)であることを表に書いた。
+  上流の著作権表示と GPL-3.0 は残した。上流の取り込みで README は衝突するので、MeltKelp 側を残す。
+
 ## [2026-10-18] ingest | PR #16 merge hook が引数の中の文字列に反応しないようにする
 - 更新: [[overview]], [[recurring-review-findings]]
 - 備考: #6。判定を「コマンド文字列に含まれるか」から「実行されるコマンドか」に変えた(`.claude/hooks/command_match.mjs`)。

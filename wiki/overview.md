@@ -61,6 +61,8 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
 
 - コード・上流のコミット・上流の `docs/` にある `#123` は**上流の** Issue 番号。MeltKelp の Issue とは別物
 - 上流の `docs/`(DEVELOPMENT.md など)は上流の文書なので書き換えない。MeltKelp の知識はこの `wiki/` に置く
+- `README.md` は MeltKelp 用に書き直してある(#18)。上流の取り込みで衝突したら MeltKelp 側を残す。上流の README の
+  ダウンロード・Discord・Sponsors・協力者の欄は MeltKelp には当てはまらない(協力者は上流の README に任せ、リンクだけ張った)
 - 入力内容は個人情報。上流のログ(`meltype.log`)は設定が OFF でも判定した語の先頭の数文字を含むので、Issue・PR に貼らない
 - レビューで繰り返し差し戻された誤りの種類は [[recurring-review-findings]]。着手時と push 前に読む
 
