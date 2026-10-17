@@ -14,10 +14,11 @@ namespace Meltype.Composition;
 ///   プロンプト: [BOS] U+EE02 文脈 U+EE00 読みのカタカナ U+EE01 → 候補 (azooKey の ZenzPromptBuilder の v3 と同じ)。
 ///   imev は U+E200〜U+E202 を使っていて (誤り)、対数確率が全体に 7 ほど低く出ていた (imev #33 の「鈍さ」)。文脈 + 読みの KV を系列 0 に置いて使い回し、
 ///   候補ごとに系列を分けて (seq_cp) 1 回の decode でまとめて採点する。終わったら (途中で失敗しても) 分けた系列を消す。
-/// ランタイム (llama.dll・ggml*.dll・モデル) は %LOCALAPPDATA%\Meltype\zenz に置く (scripts/Install-ZenzRuntime.ps1)。
+/// ランタイムは %LOCALAPPDATA%\Meltype\zenz に置く (scripts/Install-ZenzRuntime.ps1)。モデルは zenz に 1 つ、llama.dll・ggml*.dll は
+/// CPU 版を zenz\cpu、Vulkan 版を zenzulkan に並べて置き、設定 (ZenzUseGpu) でどちらを読み込むかを選ぶ (MeltKelp #31。LibraryDirectory())。
 /// llama.dll の構造体 (llama_model_params など) は版ごとに形が変わり、合わない DLL を呼ぶと Meltype.exe ごと落ちるので、
 /// 中身を確かめた b4846 の llama.dll (SHA-256 が一致するもの) しか読み込まない。無い・合わない・読み込めなければ採点しない (フェイルオープン)。
-/// Vulkan 版を置いてあり GPU が見つかれば、モデルを全部 GPU に載せる (見つからない・載せられなければ CPU)。
+/// Vulkan 版を読み込んで GPU が見つかれば、モデルを全部 GPU に載せる (見つからない・載せられなければ CPU)。
 /// 読み込みは別スレッド。採点は UI スレッドから呼ばれ、deadline を過ぎると llama_decode を打ち切る (abort callback。CPU のときだけ効く)。
 /// </summary>
 public sealed unsafe class LlamaZenzScorer : IConversionScorer
@@ -43,6 +44,7 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
     public static string DefaultDirectory => Path.Combine(Config.AppPaths.DataDirectory, "zenz");
 
     private readonly string _directory;
+    private readonly Func<bool> _useGpu;
     private readonly object _gate = new();
     private int _loading;
     private volatile bool _ready;
@@ -79,19 +81,43 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
     // abort callback が見る締め切り (Environment.TickCount64)。採点は 1 つずつ (_gate) なので static で足りる
     private static long s_deadline;
 
-    public LlamaZenzScorer(string? directory = null) => _directory = directory ?? DefaultDirectory;
+    /// <param name="useGpu">Vulkan 版を使うか (設定の ZenzUseGpu)。読み込むときに 1 回だけ見る。</param>
+    public LlamaZenzScorer(string? directory = null, Func<bool>? useGpu = null)
+    {
+        _directory = directory ?? DefaultDirectory;
+        _useGpu = useGpu ?? (() => true);
+    }
 
     public bool IsReady => _ready;
 
     /// <summary>ランタイムの一式が置いてあるか。</summary>
-    public bool IsInstalled => File.Exists(Path.Combine(_directory, "llama.dll")) && File.Exists(Path.Combine(_directory, ModelFile));
+    public bool IsInstalled => File.Exists(Path.Combine(_directory, ModelFile)) && LibraryDirectory(_directory, _useGpu()) is not null;
+
+    /// <summary>
+    /// llama.dll・ggml*.dll を読み込むフォルダー。GPU なら vulkan → cpu、CPU なら cpu の順に、llama.dll があるものを選ぶ。
+    /// どちらも無ければ zenz の直下 (#31 より前の置き方)。直下が Vulkan 版でも、CPU の設定なら Load() が読み込まない。
+    /// 同じ名前の DLL を 1 つのプロセスで読み替えられない (llama.dll の依存が先に読み込んだ ggml.dll に結び付く) ので、
+    /// 設定を変えても、起動し直すまで最初に選んだものを使う。
+    /// </summary>
+    internal static string? LibraryDirectory(string root, bool useGpu)
+    {
+        string[] candidates = useGpu ? ["vulkan", "cpu", ""] : ["cpu", ""];
+        foreach (var name in candidates)
+        {
+            var dir = name.Length == 0 ? root : Path.Combine(root, name);
+            if (File.Exists(Path.Combine(dir, "llama.dll"))) return dir;
+        }
+        return null;
+    }
 
     public void EnsureLoading()
     {
         if (Interlocked.Exchange(ref _loading, 1) != 0) return;
         if (!IsInstalled)
         {
-            Diagnostics.Log.Info("zenz: ランタイムが無いので、候補の並べ替えはしません (%LOCALAPPDATA%\\Meltype\\zenz)");
+            Diagnostics.Log.Info(_useGpu()
+                ? "zenz: ランタイムが無いので、候補の並べ替えはしません (%LOCALAPPDATA%\\Meltype\\zenz)"
+                : "zenz: GPU を使わない設定で CPU 版のランタイムが無いので、候補の並べ替えはしません (%LOCALAPPDATA%\\Meltype\\zenz\\cpu)");
             return;
         }
         new Thread(() =>
@@ -124,7 +150,9 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
         var watch = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            var llama = Path.Combine(_directory, "llama.dll");
+            var useGpu = _useGpu();
+            if (LibraryDirectory(_directory, useGpu) is not { } libraries) return;
+            var llama = Path.Combine(libraries, "llama.dll");
             string? build;
             using (var stream = File.OpenRead(llama))
             {
@@ -134,19 +162,24 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
                     return;
                 }
             }
+            if (build == "vulkan" && !useGpu)
+            {
+                Diagnostics.Log.Warn("zenz: GPU を使わない設定ですが、CPU 版のランタイム (zenz\\cpu) が無いので読み込みません");
+                return;
+            }
             // llama.dll が依存する ggml*.dll を先に同じ場所から読み込んでおく (既定の検索順で別の場所の DLL を拾わない)。
             // Vulkan 版の ggml.dll は ggml-vulkan.dll に依存する (CPU 版には無い)
             var backends = build == "vulkan" ? new[] { "ggml-base.dll", "ggml-cpu.dll", "ggml-vulkan.dll", "ggml-rpc.dll", "ggml.dll" } : ["ggml-base.dll", "ggml.dll", "ggml-cpu.dll", "ggml-rpc.dll"];
             foreach (var name in backends)
             {
-                var path = Path.Combine(_directory, name);
+                var path = Path.Combine(libraries, name);
                 if (File.Exists(path)) NativeLibrary.Load(path);
             }
             var handle = NativeLibrary.Load(llama);
-            var ggml = NativeLibrary.Load(Path.Combine(_directory, "ggml.dll"));
+            var ggml = NativeLibrary.Load(Path.Combine(libraries, "ggml.dll"));
             if (NativeLibrary.TryGetExport(ggml, "ggml_backend_load_all_from_path", out var loadAll))
             {
-                var dir = Utf8(_directory);
+                var dir = Utf8(libraries);
                 fixed (byte* p = dir) ((delegate* unmanaged[Cdecl]<byte*, void>)loadAll)(p);
             }
             _modelDefaultParams = (delegate* unmanaged[Cdecl]<LlamaModelParams>)Export(handle, "llama_model_default_params");
@@ -168,7 +201,7 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
             ((delegate* unmanaged[Cdecl]<void>)Export(handle, "llama_backend_init"))();
 
             var modelParams = _modelDefaultParams();
-            var gpu = build == "vulkan" && HasGpu(ggml, NativeLibrary.Load(Path.Combine(_directory, "ggml-base.dll")));
+            var gpu = build == "vulkan" && HasGpu(ggml, NativeLibrary.Load(Path.Combine(libraries, "ggml-base.dll")));
             modelParams.NGpuLayers = gpu ? 999 : 0;
             modelParams.UseMmap = 1;
             var modelPath = Utf8(Path.Combine(_directory, ModelFile));

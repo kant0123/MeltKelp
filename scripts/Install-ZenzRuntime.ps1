@@ -6,7 +6,10 @@
   置くもの: llama.cpp (azooKey のフォークの b4846。既定は CPU 版、-Gpu で Vulkan 版) の llama.dll・ggml*.dll と、
   zenz-v3.1-small のモデル (ggml-model-Q5_K_M.gguf)。Meltype.exe (LlamaZenzScorer) は、llama.dll の SHA-256 がこれらの版のものと
   一致するときだけ読み込む (構造体の形が版ごとに変わり、合わない DLL を呼ぶと Meltype.exe ごと落ちるため)。版を変えるならコードの
-  LlamaBuilds も直す。Vulkan 版を置くと、GPU が見つかれば採点を GPU でする (MeltKelp #29)。CPU 版に戻すときは -Gpu を付けずに置き直す。
+  LlamaBuilds も直す。
+  DLL は CPU 版を zenz\cpu、Vulkan 版を zenzulkan に置き、モデルは zenz に 1 つ置く。両方置いておけば、どちらを使うかは
+  Meltype の設定「zenz を GPU で動かす」で選べる (MeltKelp #29・#31)。両方置くには、-Gpu を付けて 1 回・付けずに 1 回実行する。
+  #31 より前の置き方 (zenz の直下の DLL) は消す。
 
   -Source を付けると、そのフォルダーからコピーする (imev の %LOCALAPPDATA%\MozcRerank など、同じ版の一式があるとき)。
   付けなければ GitHub (azooKey/llama.cpp のリリース) と Hugging Face (Miwa-Keita/zenz-v3.1-small-gguf) から取ってくる。
@@ -23,7 +26,7 @@
   置き場所。既定は %LOCALAPPDATA%\Meltype\zenz。
 
 .PARAMETER Gpu
-  Vulkan 版 (llama-b4846-bin-win-vulkan-x64.zip) を置く。付けなければ CPU 版 (llama-b4846-bin-win-avx-x64.zip)。
+  Vulkan 版 (llama-b4846-bin-win-vulkan-x64.zip) を zenzulkan に置く。付けなければ CPU 版 (llama-b4846-bin-win-avx-x64.zip) を zenz\cpu に置く。
 #>
 param(
     [string]$Source,
@@ -54,12 +57,16 @@ if ($Gpu) {
         'ggml-rpc.dll'  = '5aac68f6e174a2148ba4a807a898b6615d0af8f483dcfb8c66dae75b0982033f'
     }
 }
-$libraries = @($expected.Keys)
-$expected['ggml-model-Q5_K_M.gguf'] = '4de930c06bef8c263aa1aa40684af206db4ce1b96375b3b8ed0ea508e0b14f6c'
+$modelName = 'ggml-model-Q5_K_M.gguf'
+$modelHash = '4de930c06bef8c263aa1aa40684af206db4ce1b96375b3b8ed0ea508e0b14f6c'
+$folder = if ($Gpu) { 'vulkan' } else { 'cpu' }
+$libraryDir = Join-Path $Destination $folder
+$model = Join-Path $Destination $modelName
 
-New-Item -ItemType Directory -Force $Destination | Out-Null
+New-Item -ItemType Directory -Force $libraryDir | Out-Null
 if ($Source) {
-    foreach ($name in $expected.Keys) { Copy-Item (Join-Path $Source $name) (Join-Path $Destination $name) -Force }
+    foreach ($name in $expected.Keys) { Copy-Item (Join-Path $Source $name) (Join-Path $libraryDir $name) -Force }
+    Copy-Item (Join-Path $Source $modelName) $model -Force
 } else {
     $work = Join-Path $env:TEMP "meltkelp-zenz-$tag-$build"
     New-Item -ItemType Directory -Force $work | Out-Null
@@ -67,10 +74,9 @@ if ($Source) {
     Invoke-WebRequest "https://github.com/azooKey/llama.cpp/releases/download/$tag/llama-$tag-bin-win-$build-x64.zip" -OutFile $zip -UseBasicParsing
     $unpacked = Join-Path $work 'bin'
     Expand-Archive $zip -DestinationPath $unpacked -Force
-    foreach ($name in $libraries) {
-        Copy-Item (Join-Path $unpacked $name) (Join-Path $Destination $name) -Force
+    foreach ($name in $expected.Keys) {
+        Copy-Item (Join-Path $unpacked $name) (Join-Path $libraryDir $name) -Force
     }
-    $model = Join-Path $Destination 'ggml-model-Q5_K_M.gguf'
     if (-not (Test-Path $model)) {
         $part = "$model.part"
         Invoke-WebRequest 'https://huggingface.co/Miwa-Keita/zenz-v3.1-small-gguf/resolve/main/ggml-model-Q5_K_M.gguf' -OutFile $part -UseBasicParsing
@@ -80,11 +86,11 @@ if ($Source) {
 
 $bad = @()
 foreach ($name in $expected.Keys) {
-    $hash = (Get-FileHash (Join-Path $Destination $name) -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($hash -ne $expected[$name]) { $bad += $name }
+    $hash = (Get-FileHash (Join-Path $libraryDir $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($hash -ne $expected[$name]) { $bad += "$folder\$name" }
 }
+if ((Get-FileHash $model -Algorithm SHA256).Hash.ToLowerInvariant() -ne $modelHash) { $bad += $modelName }
 if ($bad.Count -gt 0) { throw "SHA-256 が想定と違います: $($bad -join ', ')" }
-# CPU 版に戻したとき、前に置いた Vulkan 版の DLL を残さない
-$vulkan = Join-Path $Destination 'ggml-vulkan.dll'
-if (-not $Gpu -and (Test-Path $vulkan)) { Remove-Item $vulkan }
-Write-Host "zenz のランタイム ($build) を置きました: $Destination"
+# #31 より前は zenz の直下に DLL を置いていた。残すと、片方のサブフォルダーしか無い設定のときに直下の版が使われ、どちらが動いているか分かりにくい
+foreach ($old in Get-ChildItem $Destination -File -Filter '*.dll') { Remove-Item $old.FullName }
+Write-Host "zenz のランタイム ($build) を置きました: $libraryDir"

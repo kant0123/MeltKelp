@@ -1,6 +1,6 @@
 ---
 type: component
-summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点
+summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点と CPU との切り替え
 updated: 2026-10-18
 related: [context-rerank-lessons, engine-base-choice, build-install, overview, recurring-review-findings]
 ---
@@ -16,13 +16,13 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview, r
 | パス | 役割 |
 | --- | --- |
 | `src/Meltype.Core/Composition/ZenzRerank.cs:68 ZenzRerankingConverter` | デコレーター本体。`Choose()` が 1 文節分の選び直し、`Candidates()` が ↑↓ の一覧の並べ替え |
-| `src/Meltype.Core/Composition/LlamaZenzScorer.cs:279 Rank()` | 採点。imev の `LlmScorer::Impl::Rank()` を C# に移したもの。`Load()` が版の確認と読み込み |
+| `src/Meltype.Core/Composition/LlamaZenzScorer.cs:312 Rank()` | 採点。imev の `LlmScorer::Impl::Rank()` を C# に移したもの。`Load()` が版の確認と読み込み |
 | `src/Meltype.Core/Composition/CompositionController.cs:1393 ConvertJapanese()` | 差し込み口: 変換の直前に `_precedingText` を渡す 1 行 |
 | `src/Meltype/Composition/CompositionService.cs:37 CompositionService()` | 差し込み口: コンストラクターの中(84 行目あたり)で `HybridConverter` を包む |
 | `scripts/Install-ZenzRuntime.ps1` | ランタイムを `%LOCALAPPDATA%\Meltype\zenz` に置く |
 
 上流のファイルへの変更は、ほかに `Settings`・`CompositionOptions` の `partial`(設定の `ZenzRerank` を別ファイルで足すため)、
-`TrayApplicationContext` の 1 行、`Meltype.Core.csproj` の `AllowUnsafeBlocks`、`--perf` の `Performance.cs` の 4 行だけ(zenz で包む・cold で控えを捨てる・計測用のラッパーが文脈を渡す・一覧を zenz のものにする)。
+`TrayApplicationContext` の 2 行(設定の `ZenzRerank`・`ZenzUseGpu` を渡す)、`Meltype.Core.csproj` の `AllowUnsafeBlocks`、`--perf` の `Performance.cs` の 4 行だけ(zenz で包む・cold で控えを捨てる・計測用のラッパーが文脈を渡す・一覧を zenz のものにする)。
 
 ## 仕組みの要点
 
@@ -82,7 +82,8 @@ imev のプロンプトのタグの誤り(U+E200〜U+E202。正しくは U+EE00�
 
 ## ランタイム
 
-- 置き場所は `%LOCALAPPDATA%\Meltype\zenz`(llama.dll・ggml*.dll・`ggml-model-Q5_K_M.gguf`)。上流の配布物とインストール先は変えない。
+- 置き場所は `%LOCALAPPDATA%\Meltype\zenz`。モデル(`ggml-model-Q5_K_M.gguf`)は直下に 1 つ、llama.dll・ggml*.dll は CPU 版を `cpu\`、
+  Vulkan 版を `vulkan\` に置く(#31。#31 より前の直下の DLL も読み込むが、スクリプトは消す)。上流の配布物とインストール先は変えない。
   データフォルダーのバックアップ(`Config/Backup.cs`)は決まったファイルしか入れないので、74MB のモデルは入らない。
 - **llama.dll は azooKey/llama.cpp の b4846 の CPU 版(`llama-b4846-bin-win-avx-x64.zip`)と Vulkan 版(`…-win-vulkan-x64.zip`)のものしか
   読み込まない**(SHA-256 で確かめる。`LlamaZenzScorer.LlamaBuilds`)。`llama_model_params` などの構造体を値で受け渡すので、版が違うと形が
@@ -95,14 +96,20 @@ imev のプロンプトのタグの誤り(U+E200〜U+E202。正しくは U+EE00�
 
 ## GPU(Vulkan)で採点する
 
-#29。`Install-ZenzRuntime.ps1 -Gpu` で Vulkan 版を置くと、GPU が見つかればモデルを全部 GPU に載せる(`LlamaZenzScorer.Load()`)。
-CPU に戻すときは `-Gpu` を付けずに置き直す(残った `ggml-vulkan.dll` はスクリプトが消す)。設定の項目にはしていない。どちらを使うかは
-置いたランタイムで決まり、Vulkan 版で `n_gpu_layers = 0` にしても、まとまった量の計算は GPU に回るので CPU 版と同じにはならないため。
+#29・#31。`Install-ZenzRuntime.ps1 -Gpu` で Vulkan 版を `zenzulkan` に、`-Gpu` なしで CPU 版を `zenz\cpu` に置く。どちらを読み込むかは
+設定「zenz を GPU で動かす」(`ZenzUseGpu`、既定 ON)で選ぶ(`LlamaZenzScorer.LibraryDirectory()`)。ON なら Vulkan 版(無ければ CPU 版)で、
+GPU が見つかればモデルを全部 GPU に載せる。OFF なら CPU 版だけを使い、Vulkan 版には触らない(CPU 版が無ければ並べ替えをしない)。
+
+- **2 つ並べて置く理由:** Vulkan 版 1 つで `n_gpu_layers` を 0 にする案は、その場で切り替えられるが、0 にしてもまとまった量の計算は GPU に
+  回り、Vulkan の初期化とドライバーのメモリ(約 +160MB)も残るので、「GPU を使わない」にならない。ユーザーの判断で並べて置く方にした。
+- **切り替えは起動し直したときに効く。** CPU 版と Vulkan 版は同じ名前の DLL(llama.dll・ggml.dll など)なので、1 つのプロセスで読み替えると、
+  後から読み込んだ llama.dll の依存が先に読み込んだ ggml.dll に結び付く。設定は読み込むとき(起動時)に 1 回だけ見る。設定の説明にもそう書いた。
 
 - **Vulkan だけにした理由:** 手元の GPU は AMD Radeon RX 9060 XT(RDNA4・gfx1200)。b4846 の HIP 版は gfx1030/1100/1101 向けしか無く、
   CUDA は NVIDIA 専用。Vulkan 版は同じコミットなので、構造体の形を確かめ直さずに済んだ。
 - **GPU が無いとき:** Vulkan 版でも、ggml に GPU の装置が無ければ(`HasGpu()`)CPU で読み込む。GPU に載せられなければ CPU で読み込み直す。
-  Vulkan のドライバー(`vulkan-1.dll`)自体が無い PC では `ggml.dll` が読み込めず、並べ替えをしない(CPU 版を置き直す)。
+  Vulkan のドライバー(`vulkan-1.dll`)自体が無い PC では `ggml.dll` が読み込めず、並べ替えをしない(同じ理由で、同じプロセスで CPU 版に
+  読み替えられない)。設定を OFF にして起動し直せば CPU 版で動く。
 - **締め切りで打ち切れない。** abort callback は CPU のバックエンドでしか効かないので、GPU では decode を途中で止められない。
   1 回の decode が 10〜30ms なので、150ms の予算は decode の前の確認で守れている。
 - **初めての形の decode が 200ms 前後かかる。** 一度に処理するトークンの数ごとに、初回だけシェーダーの準備が走る(実測。ドライバーが exe ごとに

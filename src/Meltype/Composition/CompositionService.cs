@@ -81,7 +81,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         };
         Phrases = resolved.Predictor?.Phrases;
         TranslationHistory = resolved.TranslationHistory;
-        _hybrid = new ZenzRerankingConverter(new HybridConverter(options.Engine, _mozc, _converter, reading => _windowsCandidates.Get(reading)), new LlamaZenzScorer(), options.ZenzRerank);
+        _hybrid = new ZenzRerankingConverter(new HybridConverter(options.Engine, _mozc, _converter, reading => _windowsCandidates.Get(reading)), new LlamaZenzScorer(useGpu: options.ZenzUseGpu), options.ZenzRerank);
         _resolved = resolved;
         Controller = new CompositionController(Gate, detector, _hybrid, this, resolved);
         Controller.Corrected += Corrections.Add;
