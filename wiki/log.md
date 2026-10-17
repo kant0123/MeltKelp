@@ -123,4 +123,5 @@ grep "^## \[" wiki/log.md | tail -5
 - 備考: PR #32 で文字列を置き換えたときに `\v` がエスケープとして解釈され、コメント・スクリプトのヘルプ・Wiki の 5 か所が崩れていた。動作には影響しない。
 
 ## [2026-10-18] ingest | #35 トレイのメニューにバージョンと zenz の状態を出す
-- 更新: [[zenz-rerank]]
+- 更新: [[zenz-rerank]], [[upstream-update-stop]]
+- 備考: 行番号の参照がずれたのを直した(upstream-update-stop)。

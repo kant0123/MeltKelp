@@ -1,7 +1,7 @@
 ---
 type: concept
 summary: 上流 Meltype のリリースによる自動更新(確認・ダウンロード・適用・手動)を MeltKelp で止めた理由と仕組み。上流の取り込みで Updater.cs が衝突したときに読む
-updated: 2026-10-17
+updated: 2026-10-18
 related: [overview, build-install, upstream-report-stop]
 ---
 
@@ -19,7 +19,7 @@ MeltKelp は、上流 yksr-melt/Meltype の GitHub のリリースによる更�
 | --- | --- |
 | `src/Meltype/Updater.cs:41 Staged()` が null を返す | ダウンロード済みの版(`%LOCALAPPDATA%\Meltype\update\ready.txt`)を対象にしない。`ApplyStagedAtStartup()`(サインイン時の適用)・`Apply()`(トレイの「更新して再起動」・通知のクリック)・`PreviewChanges()`・トレイの「更新して再起動」の項目が、どれもここを通るので一緒に止まる |
 | `src/Meltype/Updater.cs:171 Run()` が `update.ps1` を動かさずに `UpstreamUpdate.Message` を返す | 起動の 2 分後と 6 時間ごとの確認(`Check()`)と、トレイの「今すぐ更新を確認」。何もダウンロードせず、ログにも何も書かない |
-| `src/Meltype/UI/TrayApplicationContext.cs:139 _autoUpdateItem` の `Visible` | トレイの「更新」→「自動で更新する」を出さない。「今すぐ更新を確認」は残し、押すと止めている旨を出す |
+| `src/Meltype/UI/TrayApplicationContext.cs:149 _autoUpdateItem` の `Visible` | トレイの「更新」→「自動で更新する」を出さない。「今すぐ更新を確認」は残し、押すと止めている旨を出す |
 | `src/Meltype/UI/SettingsForm.cs:291 BuildGroups()` の `UpstreamUpdate.ShowsSetting` | 設定画面の「9. 更新」→「自動で更新する」を出さない(「9. 更新」の項目はこれだけなので、枠ごと消える) |
 
 - `settings.json` の `AutoUpdate` の値は読み書きしない。公式版から置き換えても、値は残ったまま使われない
