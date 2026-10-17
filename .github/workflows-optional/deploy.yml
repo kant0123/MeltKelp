@@ -45,24 +45,34 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      # shell: pwsh (PowerShell 7) を使う。既定の powershell (Windows PowerShell 5.1) は
-      # BOM 無し UTF-8 のスクリプトを CP932 として読むため、日本語を含む .ps1 が
-      # パースエラーで 1 行も実行されずに落ちる。pwsh は BOM の有無に依存しない
-      # (.ps1 側にも BOM を付けておくこと。5.1 から手動実行する場合の保険)。
-      # pwsh が runner の実行アカウントから解決できない環境では powershell に戻す。
+      # 起動は Windows PowerShell 5.1(OS 標準で必ずある)。shell: pwsh にしないのは、Store 版 pwsh が
+      # ユーザー単位のエイリアスで解決され、サービス実行アカウントからは見えないため
+      # (pwsh: command not found)。-ExecutionPolicy Bypass は GitHub の既定のシェル行に無く、
+      # Restricted のアカウントでは全ステップが落ちる(deploy/README.md「落とし穴」)。
+      #
+      # pwsh が見えるならデプロイスクリプトはそちらで動かす(BOM の有無に依存しない)。
+      # 見えなければ 5.1 で動かすので、.ps1 は必ず BOM 付きで保存する。
+      # 引数は渡さず環境変数で受け渡す。5.1 から外部コマンドに渡すと空文字列が消え、
+      # 引用符を含む値(APP_RESTART_CMD)が途中で割れる。スクリプトの既定値が同じ環境変数を読む。
+      # run: の中は ASCII だけにする(一時ファイルを 5.1 がどの文字コードで読むかに依存しないため)。
       - name: 自動デプロイを実行
         id: deploy
-        shell: pwsh
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
-          $repo = if ($env:APP_REPO_PATH) { $env:APP_REPO_PATH } else { 'C:\path\to\production\checkout' }
-          $restart = if ($env:APP_RESTART_CMD) { $env:APP_RESTART_CMD } else { '' }
-          & "$repo\deploy\auto_deploy.ps1" -RepositoryPath $repo -ServiceRestartCommand $restart
+          if (-not $env:APP_REPO_PATH) { $env:APP_REPO_PATH = 'C:\path\to\production\checkout' }
+          $script = Join-Path $env:APP_REPO_PATH 'deploy\auto_deploy.ps1'
+          if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+            & pwsh -NoProfile -ExecutionPolicy Bypass -File $script
+          } else {
+            & $script
+          }
+          exit $LASTEXITCODE
 
       # 実デプロイだったのか no-op だったのかを実行一覧から辿れるようにする。
       # status: deployed / no-op / skipped / drift / down / rolled_back / failed / error
       - name: 結果を注記
         if: always()
-        shell: pwsh
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $deployed = "${{ steps.deploy.outputs.deployed }}"
           $status = "${{ steps.deploy.outputs.status }}"

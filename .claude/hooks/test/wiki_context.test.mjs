@@ -116,3 +116,16 @@ test('記録に壊れた行が混ざっても、残りの記録で集計する',
   assert.match(out, /読めない行を 1 行飛ばした/);
   assert.match(out, /差し込み: 5 件.*Read された: 1 件 \(20%\)/);
 });
+
+// 計測の件数を変えないよう、差し込みが起きるテストは計測のテストより後に置く。
+test('ルート直下のファイルへの参照(スラッシュ無し)も逆引きする', () => {
+  const root = makeRepo('rootref', { page: 'setup', summary: '導入手順', codeFile: 'app/setup.py' });
+  writeFileSync(join(root, 'README.md'), '# x\n');
+  writeFileSync(
+    join(root, 'wiki', 'components', 'setup.md'),
+    '---\ntype: component\nsummary: 導入手順\nupdated: 2026-09-30\nrelated: []\n---\n\n' +
+      '手順は `README.md:1` にある。API は `api.example.com:443` で待ち受ける。\n',
+  );
+  const input = (file) => ({ ...call('s9', 'Edit', join(root, file)), cwd: root });
+  assert.match(context(runHook(input('README.md'))), /setup\.md — 導入手順/);
+});
