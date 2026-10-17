@@ -2,7 +2,7 @@
 type: concept
 summary: 上流 Meltype のリリースによる自動更新(確認・ダウンロード・適用・手動)を MeltKelp で止めた理由と仕組み。上流の取り込みで Updater.cs が衝突したときに読む
 updated: 2026-10-17
-related: [overview, build-install]
+related: [overview, build-install, upstream-report-stop]
 ---
 
 # 上流のリリースによる更新を止める
@@ -65,3 +65,4 @@ MeltKelp 自身の版を配って自動で更新したくなったら(今は配�
 
 - [[overview]] — 公式を置き換える前提と、上流との差分を最小にする方針
 - [[build-install]] — 入れ直しと実機での確認の手順
+- [[upstream-report-stop]] — 同じ形で、報告の導線を上流に向けないようにしている

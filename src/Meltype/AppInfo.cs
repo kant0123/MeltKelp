@@ -16,14 +16,17 @@ internal static class AppInfo
     /// <summary>GitHub の Issue の作成画面を、OS・版・実行環境を入れた状態で開く URL (template は 1-bug.yml など)。</summary>
     public static string GitHubReportUrl(string template, string environment) =>
         // OS の選択肢は雛形ごとに違う (不具合は Windows 11 / 10、誤判定は Windows)
+        !UpstreamReport.Allowed ? UpstreamReport.IssueUrl : // MeltKelp: 上流に報告しない (MeltKelp #8)
         Config.ProjectInfo.GitHubReportUrl(template, template.StartsWith("1-", StringComparison.Ordinal) ? Diagnostics.ReportInfo.OsName : "Windows", Version, environment);
 
     /// <summary>自分で直した誤判定を、誤判定のひな形に入れた状態で開く URL (issue #284)。</summary>
     public static string MisdetectionReportUrl(Composition.Correction correction, string environment) =>
+        !UpstreamReport.Allowed ? UpstreamReport.IssueUrl : // MeltKelp: 上流に、入力した文字つきで報告しない (MeltKelp #8)
         Config.ProjectInfo.MisdetectionReportUrl(correction, "Windows", Version, environment);
 
     /// <summary>不具合報告を開く URL (OS・版・実行環境は今のものを入れる)。</summary>
-    public static string ReportUrl(string environment) => Config.ProjectInfo.ReportUrl(Diagnostics.ReportInfo.OsName, Version, environment);
+    public static string ReportUrl(string environment) => !UpstreamReport.Allowed ? UpstreamReport.IssueUrl : // MeltKelp: 上流に報告しない (MeltKelp #8)
+        Config.ProjectInfo.ReportUrl(Diagnostics.ReportInfo.OsName, Version, environment);
 
     /// <summary>自動更新で最新のリリースを見に行く GitHub のリポジトリ (公開されている必要がある)。</summary>
     public const string UpdateRepository = "yksr-melt/Meltype";

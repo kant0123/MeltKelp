@@ -49,3 +49,9 @@ grep "^## \[" wiki/log.md | tail -5
 - 更新: [[overview]], [[build-install]](実施記録に実機での確認を追記)
 - 備考: #3。判定は `src/Meltype/UpstreamUpdate.cs` に置き、上流のファイルには 1 行ずつ 4 か所差し込んだ。
   手元の .NET SDK が 9 だったので、winget で .NET 10 SDK(10.0.402)を入れてから `Meltype.Tests` を流した。
+
+## [2026-10-17] ingest | PR #TBD 報告の導線を上流に向けない
+- 新規: [[upstream-report-stop]]
+- 更新: [[overview]], [[upstream-update-stop]]
+- 備考: #8。判定は `src/Meltype/UpstreamReport.cs` に置き、`AppInfo` の報告の URL 3 つ・トレイの「直した誤判定を報告...」・
+  `ReportDialog` の GitHub のリンクに 1 行ずつ差し込んだ。
