@@ -26,7 +26,7 @@ related: [overview]
 | `src/Meltype.Core/Composition/TypedKeysFormatter.cs:18 Format()` | 形式ごとの文字列を作る。単語に区切れないときは区切らずに出す |
 | `src/Meltype.Core/Composition/CompositionController.cs:2504 TypedKeys()` | 上流への差し込み口(1 行)。`CompositionOptions.TypedKeysFormat`・`TypedKeysWords` を足した |
 | `src/Meltype/Composition/MsImeWords.cs:28 Split()` | Microsoft IME の形態素解析で、ひらがなを単語に区切る |
-| `src/Meltype/Composition/CompositionService.cs:70 CompositionService()` | `MsImeWords` を作って `TypedKeysWords` に渡す差し込み口 |
+| `src/Meltype/Composition/CompositionService.cs:38 CompositionService()` | コンストラクターで `MsImeWords`(フィールド `_words`)を `TypedKeysWords` に渡す差し込み口 |
 
 ## 依存関係
 
