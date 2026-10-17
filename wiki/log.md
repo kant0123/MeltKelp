@@ -106,7 +106,7 @@ grep "^## \[" wiki/log.md | tail -5
   [[recurring-review-findings]] に種類を足した。3 回目の指摘(予算を過ぎた後の呼び出しで、控えてある採点を使わない)も再現して直した。
   ユーザーの判断で、この作業を MeltKelp 0.1.0 とした。上流の版 1.2.1 は変えず、MeltKelp の版を別に持つ([[overview]])。タグは `meltkelp-v0.1.0`。
 
-## [2026-10-18] ingest | #29 zenz の採点を GPU(Vulkan)で動かせるようにする
+## [2026-10-18] ingest | PR #30 zenz の採点を GPU(Vulkan)で動かせるようにする
 - 更新: [[zenz-rerank]], [[build-install]]
 - 備考: llama.cpp b4846 の Vulkan 版を CPU 版と並べて読み込める版に足し、`Install-ZenzRuntime.ps1 -Gpu` で置けるようにした。
   手元の RX 9060 XT で、1 キー cold の p95 が約 40ms → 17ms。初めての形の decode が 200ms 前後かかるのを実測で見つけ、
