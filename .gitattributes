@@ -1,0 +1,11 @@
+# MeltKelp で足したもの(上流 Meltype には .gitattributes が無い)。
+# テンプレートの `* text=auto` は入れない。上流には CRLF・混在で登録されたファイル
+# (Meltype.sln など)があり、正規化すると上流の取り込みのたびに差分と衝突が出るため。
+
+# .ps1 は CRLF で固定する。Windows PowerShell 5.1 向けで、UTF-8 (BOM 付き) の規約と合わせて
+# 改行も Windows 側に揃える。
+*.ps1 text eol=crlf
+*.ps1.example text eol=crlf
+
+# .sh は LF で固定する。CRLF だと bash が `$'\r': command not found` で落ち、hook が黙って素通しになる。
+*.sh text eol=lf

@@ -1,0 +1,167 @@
+name: tests
+
+# MeltKelp が足したワークフロー(上流 Meltype には無い)。数分で回り、壊れていれば確実に赤になる検査だけを置く。
+# Windows でのビルドと Windows 版のテスト(Meltype.Tests)は上流の build.yml が受け持つ。build.yml は src/ などを
+# 変えたときだけ走るので必須チェックにはできず、ここで毎回走る Meltype.Core.Tests を必須にしている。
+# TSF への登録と実際のアプリでの変換は CI では見ない(wiki/operations/build-install.md)。
+#
+# main はブランチ保護で、ジョブ名 checks と core-tests を必須チェックにしている。
+# ジョブ名(jobs: 直下のキー)を変えるときは .github/branch-protection.json と GitHub 側の保護設定も
+# 直すこと。ずれると必須チェックが実行されず、PR が永久に pending になる(下の「一致」の検査が見る)。
+#
+# どの検査も「対象が 0 件で成功」に落ちないようにしてある。
+# 黙って何も見ていない緑の CI は、赤い CI より気づきにくい。
+#
+# CD が無いので、テンプレートの注意(wiki-lint をテストに相乗りさせるとデプロイが止まる)は当てはまらず、
+# Wiki の検査も checks に入れている。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # Wiki の updated を各ファイルの最終コミット日と突き合わせるため、全履歴を取る。
+          # 浅いクローンだと最終コミット日が取れず、スクリプトは日付の検査を黙って飛ばす。
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: ブランチ保護の必須チェック名とジョブ名の一致
+        # 一致しないと必須チェックが実行されず、PR が永久に pending になる。
+        # 検査できるのは branch-protection.json とこのファイルの整合まで。GitHub 側の設定との食い違いは見えない。
+        run: |
+          python - <<'PY'
+          import json, re, sys
+          contexts = json.load(open('.github/branch-protection.json', encoding='utf-8'))['required_status_checks']['contexts']
+          workflow = open('.github/workflows/test.yml', encoding='utf-8').read()
+          jobs = re.findall(r'^  ([A-Za-z0-9_-]+):\s*$', workflow.split('\njobs:\n', 1)[1], re.M)
+          print('必須チェック:', contexts, '/ ジョブ:', jobs)
+          if not contexts:
+              sys.exit('::error::必須チェックが 0 件(branch-protection.json の読み取りが壊れている)')
+          missing = [c for c in contexts if c not in jobs]
+          if missing:
+              sys.exit(f'::error::必須チェック {missing} に対応するジョブが test.yml に無い。ジョブ名を変えたなら branch-protection.json と GitHub 側の保護設定も直す')
+          PY
+
+      - name: Python の構文
+        run: |
+          count=$(find . -name '*.py' -not -path './.git/*' | wc -l)
+          echo "検査した .py: $count 件"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::検査対象の .py が 1 件も見つからない(パスか除外条件が壊れている)"
+            exit 1
+          fi
+          find . -name '*.py' -not -path './.git/*' -print0 | xargs -0 python -m py_compile
+
+      - name: agy レビューの回帰テスト
+        run: |
+          pip install pytest
+          python -m pytest review/tests -q
+
+      - name: Wiki 差し込み hook のテスト
+        # ディレクトリ指定(node --test .claude/hooks/test)は Windows の node で拾えないため、ファイルを並べる。
+        run: node --test .claude/hooks/test/*.test.mjs
+
+      - name: Wiki の整合
+        run: node scripts/wiki-lint.js
+
+      - name: シェルスクリプトの構文
+        run: |
+          status=0
+          count=0
+          while IFS= read -r file; do
+            count=$((count + 1))
+            bash -n "$file" || status=1
+          done < <(find . -name '*.sh' -not -path './.git/*')
+          echo "検査した .sh: $count 件"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::検査対象の .sh が 1 件も見つからない(パスか除外条件が壊れている)"
+            status=1
+          fi
+          exit $status
+
+      - name: PowerShell の構文と BOM
+        shell: pwsh
+        run: |
+          # BOM が無いと Windows PowerShell 5.1 が CP932 として読み、日本語が化けてパースエラーで落ちる。
+          # pwsh 7 は BOM 無しでも読めるので、構文の検査とは別に BOM を見る。
+          # 上流のファイルで BOM が無いものは、直すと上流の取り込みで衝突するので直さずに除外する
+          # (build.yml が shell: pwsh で呼ぶだけのもの)。除外したファイルが無くなったら、ここから外す。
+          $upstreamNoBom = @('packaging/Find-InnoSetup.ps1')
+          $root = (Get-Location).Path
+          $failed = $false
+          $files = @(Get-ChildItem -Recurse -File -Include *.ps1, *.ps1.example |
+            Where-Object { [System.IO.Path]::GetRelativePath($root, $_.FullName) -notmatch '^\.git[\\/]' })
+          Write-Host "検査した PowerShell: $($files.Count) 件(BOM の除外 $($upstreamNoBom.Count) 件)"
+          if ($files.Count -lt 1) {
+            Write-Host "::error::検査対象の .ps1 が 1 件も見つからない(パスか除外条件が壊れている)"
+            exit 1
+          }
+          foreach ($exempt in $upstreamNoBom) {
+            if (-not (Test-Path -LiteralPath $exempt)) {
+              Write-Host "::error::BOM の除外に挙げた $exempt が無い。除外の一覧から外す"
+              $failed = $true
+            }
+          }
+          foreach ($file in $files) {
+            $relative = [System.IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
+            $errors = $null
+            # .example は拡張子が .ps1 でないため、内容を読んでパースする
+            $text = Get-Content -LiteralPath $file.FullName -Raw
+            [System.Management.Automation.Language.Parser]::ParseInput($text, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              foreach ($e in $errors) {
+                Write-Host "::error file=$relative,line=$($e.Extent.StartLineNumber)::$($e.Message)"
+              }
+              $failed = $true
+            }
+            $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+            $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+            if (-not $hasBom -and $upstreamNoBom -notcontains $relative) {
+              Write-Host "::error file=$relative::UTF-8 BOM が無い"
+              $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }
+
+  core-tests:
+    # OS に依存しない部分 (src/Meltype.Core) のテスト。品質テストの基準 (全体 95% 以上・各カテゴリー 80% 以上) を含む。
+    # 上流の build.yml の core ジョブと同じコマンドだが、あちらは src/ などを変えたときだけ走るので、ここで毎回回す。
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Meltype.Core.Tests
+        run: dotnet run --project src/Meltype.Core.Tests/Meltype.Core.Tests.csproj -c Release
