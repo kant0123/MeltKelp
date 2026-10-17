@@ -92,5 +92,9 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
   (`.claude/hooks/check_agy_review.sh`)だけ。hook は head SHA ごとの agy レビューの記録を見て、`agy_review.py` は CI が緑の
   head にしかレビューを付けないので、Claude Code からのマージに限れば「CI 緑 + レビュー済み」が守られる。GitHub の画面からの
   マージは素通しになる。`branch-protection.json` は、プランか公開範囲を変えたときのために正として残している。
+  hook が見るのは「実際に実行されるコマンド」だけで、Issue や PR の本文・`grep` のパターンなど引数や引用符の中の文字列には
+  反応しない(#6)。読み取りは `.claude/hooks/command_match.mjs` が受け持ち(`check_wiki_updated.sh` の PR 作成の判定も同じ)、
+  `&&` `;` `|` 改行・`$(...)`・`bash -c` / `eval` の引数まで辿る。node が無い・解釈に失敗したときは、従来の部分一致に戻して
+  止める側に倒す。`python -c` など別言語から組み立てる呼び出しは読まない。
 - agy レビューは IME 向けのドメイン `ime`(`review/domain_invariants.json`)で回す。テンプレート既定の `general` は
   Web 向けで、変換を止めない・入力内容を出さない・UI スレッドの時間上限・上流との差分の最小化の観点を持たない。

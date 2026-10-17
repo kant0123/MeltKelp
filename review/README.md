@@ -101,7 +101,8 @@ hook は導入 PR 自体を守れないので、この PR だけ手で順に確�
 5. **メインツリーで** hook を確かめる。レビューしていない過去の PR 番号(マージ済みのものなら、hook が
    止めなくても gh が失敗するだけで無害)で差し止められること、番号なしの `gh pr merge` が差し止められること、
    レビュー済みの導入 PR の番号では通ることを見る。hook を直接叩くなら次のとおり
-   (`<N>` は PR 番号。コマンド文字列を手元の Claude Code に打つと、有効な hook 自身が反応する点に注意)。
+   (`<N>` は PR 番号。hook は実際に実行されるコマンドだけを見るので、本文や引数に書くだけなら反応しないが、
+   マージを本当に実行する形で手元の Claude Code に打つと、有効な hook 自身が反応する)。
 
    ```bash
    printf '{"tool_input":{"command":"gh pr merge <N> --merge"}}' | bash .claude/hooks/check_agy_review.sh; echo $?
