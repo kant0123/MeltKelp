@@ -63,6 +63,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             TranslationCandidates = () => _engine.Settings.TranslationCandidates,
             CandidateMeanings = () => _engine.Settings.ShowCandidateMeanings,
             ShowTypedKeys = () => _engine.Settings.ShowTypedKeys,
+            TypedKeysFormat = () => _engine.Settings.TypedKeysFormat, // MeltKelp #27
             TabConversion = () => _engine.Settings.TabConversion,
             ContinueAfterConversion = () => _engine.Settings.ContinueAfterConversion,
             Learning = () => _engine.Settings.LearningEnabled,

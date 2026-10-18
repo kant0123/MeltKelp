@@ -125,3 +125,7 @@ grep "^## \[" wiki/log.md | tail -5
 ## [2026-10-18] ingest | #35 トレイのメニューにバージョンと zenz の状態を出す
 - 更新: [[zenz-rerank]], [[upstream-update-stop]]
 - 備考: 行番号の参照がずれたのを直した(upstream-update-stop)。
+
+## [2026-10-18] ingest | PR #28 打ったキーの表示形式を選べるようにした(#27)
+- 新規: [[typed-keys-display]]
+- 更新: [[overview]]

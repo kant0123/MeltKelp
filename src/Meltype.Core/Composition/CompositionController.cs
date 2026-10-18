@@ -2496,7 +2496,7 @@ public sealed class CompositionController
     }
 
     /// <summary>変換ボックスに出す、打ったキー (設定が ON のときだけ)。</summary>
-    private string? TypedKeys() => _options.ShowTypedKeys() && _text.Raw is { Length: > 0 } raw ? raw : null;
+    private string? TypedKeys() => _options.ShowTypedKeys() ? TypedKeysFormatter.Format(_text, _options.TypedKeysFormat(), _options.TypedKeysWords) : null; // MeltKelp #27: 形式を選べる
 
     /// <summary>
     /// 予測変換の候補を、今の打ちかけから作り直す。打った内容が変わったら選んでいた候補は戻す。

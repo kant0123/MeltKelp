@@ -261,8 +261,8 @@ public sealed partial class Settings
      Description("変換中に同じ候補で少し (約 1.5 秒) 止まると、その候補の意味をウィクショナリー日本語版から候補の一覧の横に出します (日本語の意味が無い語は JMdict の英訳: 橋 → bridge)。同音異義語を選ぶときの手がかりに。")]
     public bool ShowCandidateMeanings { get; set; } = true;
 
-    [Category("1. 全般"), DisplayName("打ったキーを表示"),
-     Description("打ったキー (ローマ字: kyouhagoogle) を小さく出します。Meltype キーボードでは変換ボックスの文字の下に、Meltype IME では候補の一覧の上に出します。打ち間違いに気づきやすくなります。")]
+    // MeltKelp #27: 設定画面では Settings.MeltKelp.cs の TypedKeysDisplay (形式のプルダウン) で選ぶ。ON / OFF はこのキーのまま持つ (今までの config.json を引き継ぐ)
+    [Browsable(false)]
     public bool ShowTypedKeys { get; set; } = true;
 
     [Category("1. 全般"), DisplayName("打ち間違いを直す"),

@@ -24,6 +24,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
     private readonly Func<(string Japanese, string Direct, string Text)> _indicatorColors;
     private readonly Func<bool> _directMode;
     private readonly MsImeKanjiConverter _converter = new();
+    private readonly MsImeWords _words = new(); // MeltKelp #27: 打ったキーのひらがなを単語に区切る
     private readonly KeyInjector _injector = new();
     private readonly WinRtCandidates _windowsCandidates = new();
     // Mozc (同梱の mozc/meltype_mozc_helper.exe) と Microsoft IME を組み合わせた変換エンジン。
@@ -69,6 +70,8 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
             TranslationCandidates = options.TranslationCandidates,
             CandidateMeanings = options.CandidateMeanings,
             ShowTypedKeys = options.ShowTypedKeys,
+            TypedKeysFormat = options.TypedKeysFormat, // MeltKelp #27
+            TypedKeysWords = options.TypedKeysWords ?? _words.Split,
             TabConversion = options.TabConversion,
             ContinueAfterConversion = options.ContinueAfterConversion,
             Learning = options.Learning,
@@ -840,6 +843,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         _tick.Dispose();
         Focus.Dispose();
         _converter.Dispose();
+        _words.Dispose(); // MeltKelp #27
         _windowsCandidates.Dispose();
         _mozc.Dispose();
         _window.Dispose();

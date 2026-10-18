@@ -2,7 +2,7 @@
 type: concept
 summary: MeltKelp とは何か・なぜ独立リポジトリのフォークで、上流に出さず、公式を置き換える前提なのか。各ページへの入口
 updated: 2026-10-18
-related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings, upstream-update-stop, upstream-report-stop, zenz-rerank]
+related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings, upstream-update-stop, upstream-report-stop, zenz-rerank, typed-keys-display]
 ---
 
 # MeltKelp 全体像
@@ -61,6 +61,8 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
 - **報告の導線を上流に向けない。** トレイの「不具合の報告・提案」などは上流のままだと上流の Issue の画面を開き、
   誤判定の報告では入力内容が URL に入る。報告の URL を MeltKelp の Issue の画面(クエリ無し)に向け、
   トレイの「不具合の報告・提案」「直した誤判定を報告」は出さない(#8、[[upstream-report-stop]])。
+- **設定「打ったキーを表示」の形式を選べる。** ローマ字・表示しない・ひらがな・単語ごとに空白を入れたひらがな(#27、[[typed-keys-display]])。
+  上流の ON / OFF のキーはそのまま持ち、単語の区切りは Microsoft IME の形態素解析を使う。
 
 ## 触る前に知っておくこと
 
