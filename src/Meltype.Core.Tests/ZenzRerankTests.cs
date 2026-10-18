@@ -405,6 +405,19 @@ internal static class ZenzRerankTests
     }
 
     [Test]
+    public static void BuildPackage_KeepsCryptographyForZenz()
+    {
+        // MeltKelp #40: Build-Package.ps1 は自己診断で読み込まれなかった大きなアセンブリを削る。自己診断は zenz を読み込まないので、
+        // LlamaZenzScorer.Load() が使う System.Security.Cryptography.dll (SHA256) を除外しておかないと、zenz が「読み込み中」のまま止まる
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null && !File.Exists(Path.Combine(dir, "Build-Package.ps1"))) dir = Path.GetDirectoryName(dir);
+        Assert.True(dir is not null, "Build-Package.ps1 が見つからない");
+        var script = File.ReadAllText(Path.Combine(dir!, "Build-Package.ps1"));
+        Assert.True(script.Contains("if ($file.Name -eq 'System.Security.Cryptography.dll') { continue }"), "削る対象から除外している");
+        Assert.Equal("System.Security.Cryptography", typeof(System.Security.Cryptography.SHA256).Assembly.GetName().Name, "SHA256 の入っているアセンブリ");
+    }
+
+    [Test]
     public static void LibraryDirectory_FollowsGpuSetting()
     {
         // MeltKelp #31: GPU なら vulkan → cpu、CPU なら cpu だけ。どちらも無ければ zenz の直下 (#31 より前の置き方)

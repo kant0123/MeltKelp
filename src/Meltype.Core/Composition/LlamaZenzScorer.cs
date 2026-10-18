@@ -144,6 +144,11 @@ public sealed unsafe class LlamaZenzScorer : IConversionScorer
             {
                 Diagnostics.Log.Warn($"zenz: 読み込みに失敗しました: {ex.GetType().Name}");
             }
+            finally
+            {
+                // Load() の中に入る前の失敗 (JIT で参照先のアセンブリが無いなど。#40) でも「読み込み中」のまま残さない
+                _loadFinished = true;
+            }
         }) { IsBackground = true, Name = "zenz loader", Priority = ThreadPriority.BelowNormal }.Start();
     }
 
