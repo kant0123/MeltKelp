@@ -145,6 +145,8 @@ foreach ($file in Get-ChildItem (Join-Path $runtime 'shared') -Recurse -Filter '
     if ($loaded -notcontains $file.BaseName) {
         # System.Reflection.Metadata.dll は ClipBoard.SetText() で使われるため continue する
         if ($file.Name -eq 'System.Reflection.Metadata.dll') { continue }
+        # MeltKelp #40: zenz の読み込み (LlamaZenzScorer.Load) が llama.dll を SHA-256 で確かめる。自己診断は zenz を読み込まないので一覧に出ない
+        if ($file.Name -eq 'System.Security.Cryptography.dll') { continue }
         Write-Host "使わないので削除: $($file.Name) ($([math]::Round($file.Length / 1MB, 1)) MB)"
         Remove-Item -LiteralPath $file.FullName
     }

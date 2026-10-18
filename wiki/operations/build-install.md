@@ -78,6 +78,17 @@ CI は実際のアプリでの入力を見ないので、この確認は省略�
 
 ## 落とし穴
 
+### パッケージの削減で zenz の読み込みに要るアセンブリが消える
+
+- `Build-Package.ps1` の「2. 読み込まれなかった大きなアセンブリを削る」は、**自己診断(`--selftest`)で読み込まれなかった** 512KB 超の
+  アセンブリを消す。自己診断は zenz を読み込まないので、zenz だけが使うアセンブリはここで消える。
+- 2026-10-18 に踏んだ(#40)。`System.Security.Cryptography.dll`(`LlamaZenzScorer.Load()` が llama.dll の版を SHA-256 で確かめる)が消え、
+  `Load()` の JIT で `FileNotFoundException` になり、トレイの「LLM (zenz)」が「読み込み中」のまま、zenz の DLL が 1 つも読み込まれなかった
+  (CPU 版・Vulkan 版とも)。同じ `Meltype.Core.dll` を pwsh から読み込んで `WaitUntilReady()` を呼ぶと読み込めたので、パッケージの側だと分かった。
+- 対処: 削る対象から除外する(`System.Reflection.Metadata.dll` と同じ形の 1 行)。除外が消えると `ZenzRerankTests.BuildPackage_KeepsCryptographyForZenz` が落ちる。
+  `Load()` に入る前の失敗でも「読み込めませんでした」になるよう、`EnsureLoading()` の読み込みスレッドの finally でも終わった印を立てる。
+- zenz の部品に新しく .NET のアセンブリ(512KB 超)を使わせたら、同じように除外が要る。入れ直した後はトレイの状態が「有効」になることまで見る。
+
 ### 入れ直しても起動中のアプリは古い DLL のまま
 
 - `Install.cmd`・`Install-Meltype.ps1`・`packaging/meltype-ime.ps1` で Meltype IME を入れ直すと、使用中の `MeltypeTip.dll` は
