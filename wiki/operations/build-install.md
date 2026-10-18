@@ -81,7 +81,7 @@ CI は実際のアプリでの入力を見ないので、この確認は省略�
 ### 入れ直しても起動中のアプリは古い DLL のまま
 
 - `Install.cmd`・`Install-Meltype.ps1`・`packaging/meltype-ime.ps1` で Meltype IME を入れ直すと、使用中の `MeltypeTip.dll` は
-  `MeltypeTip.dll.<日時>.old` に改名され、新しい DLL が置かれる(`native/tip/Register-Tip.ps1:62`)。だが**起動中のアプリは、
+  `MeltypeTip.dll.<日時>.old` に改名され、新しい DLL が置かれる(`native/tip/Register-Tip.ps1`)。だが**起動中のアプリは、
   起動時に読み込んだ古い DLL(改名後の `.old`)を使い続ける。** 新しい DLL を読み込むのは、その後に起動したアプリだけ。
 - 2026-10-18 に踏んだ(#37)。10/17 から起動しっぱなしのサクラエディタ(32 bit。`tip\x86` を読み込む)が 10/11 版の DLL のままで、
   10/12 に入った「候補の一覧の上に打ったキーを出す」(57b9d95)が出ず、後から起動したメモ帳では出た。コードの不具合に見えるので注意。
