@@ -16,7 +16,7 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview, r
 | パス | 役割 |
 | --- | --- |
 | `src/Meltype.Core/Composition/ZenzRerank.cs:68 ZenzRerankingConverter` | デコレーター本体。`Choose()` が 1 文節分の選び直し、`Candidates()` が ↑↓ の一覧の並べ替え |
-| `src/Meltype.Core/Composition/LlamaZenzScorer.cs:312 Rank()` | 採点。imev の `LlmScorer::Impl::Rank()` を C# に移したもの。`Load()` が版の確認と読み込み |
+| `src/Meltype.Core/Composition/LlamaZenzScorer.cs:327 Rank()` | 採点。imev の `LlmScorer::Impl::Rank()` を C# に移したもの。`Load()` が版の確認と読み込み |
 | `src/Meltype.Core/Composition/CompositionController.cs:1393 ConvertJapanese()` | 差し込み口: 変換の直前に `_precedingText` を渡す 1 行 |
 | `src/Meltype/Composition/CompositionService.cs:37 CompositionService()` | 差し込み口: コンストラクターの中(84 行目あたり)で `HybridConverter` を包む |
 | `scripts/Install-ZenzRuntime.ps1` | ランタイムを `%LOCALAPPDATA%\Meltype\zenz` に置く |
@@ -116,6 +116,13 @@ GPU が見つかればモデルを全部 GPU に載せる。OFF なら CPU 版�
   覚えるので、同じ exe の 2 回目の起動からは速い)。UI スレッドを止めるので、読み込みの最後に 1〜16・24・32…256 トークンで 1 回ずつ空回しする
   (`WarmUpGpu()`)。これで初めて起動したときの読み込みは約 3 秒、2 回目からは約 0.55 秒(別スレッドなので変換は止まらない)。
 - メモリ: VRAM に載せても `Meltype.exe` のワーキングセットは減らず、Vulkan のドライバーの分だけ増える(手元で約 265MB → 427MB)。
+
+## トレイのメニューの表示
+
+#35。右クリックのメニューにバージョンと zenz の状態を出す(表示専用。開くたびに更新)。状態は `LlamaZenzScorer.Describe()`
+(有効・未導入・待機中・読み込み中・読み込めませんでした。設定 OFF は `CompositionService.ZenzStatus` が「OFF (設定)」にする)。
+展開場所は読み込めたときだけ出し、GPU に載せたなら「VRAM (GPU・Vulkan)」、そうでなければ「メモリ (CPU)」。
+Vulkan 版でも GPU が無い・載せられずに CPU で読み込み直したときは後者になる。読み込んだ後に設定を変えても、起動し直すまで表示は変わらない。
 
 ## 実測(手元の Windows 11・CPU・6 スレッド、2026-10-18)
 
