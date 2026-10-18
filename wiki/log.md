@@ -130,7 +130,7 @@ grep "^## \[" wiki/log.md | tail -5
 - 新規: [[typed-keys-display]]
 - 更新: [[overview]]
 
-## [2026-10-18] query | #37 入れ直しても起動中のアプリは古い Meltype IME の DLL を使い続ける
+## [2026-10-18] query | PR #38 入れ直しても起動中のアプリは古い Meltype IME の DLL を使い続ける
 - 更新: [[build-install]]
 - 備考: 打ったキーの表示がメモ帳では出てサクラエディタでは出ない、という報告を調べた結果。起動しっぱなしの 32 bit アプリが
   改名された古い DLL(`.old`)を読み込んだままだった。コードの変更は無い。
