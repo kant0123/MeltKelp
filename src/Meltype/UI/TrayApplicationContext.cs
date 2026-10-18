@@ -15,6 +15,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly MeltypeEngine _engine;
     private readonly NotifyIcon _tray;
     private readonly ToolStripMenuItem _statusItem;
+    private readonly ToolStripMenuItem _versionItem, _zenzItem, _zenzPlaceItem; // MeltKelp #35
     private readonly ToolStripMenuItem _enabledItem;
     private readonly HotkeyWindow _hotkey;
     private readonly HotkeyWindow _registerHotkey;
@@ -57,6 +58,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
             AutoCorrect = () => _engine.Settings.AutoCorrectAfterCommit && _engine.AppSettings.DetectionLevel != DetectionLevel.Manual,
             Level = () => _engine.AppSettings.DetectionLevel,
             Engine = () => _engine.Settings.ConversionEngine,
+            ZenzRerank = () => _engine.Settings.ZenzRerank, // MeltKelp #2
+            ZenzUseGpu = () => _engine.Settings.ZenzUseGpu, // MeltKelp #31
             TranslationCandidates = () => _engine.Settings.TranslationCandidates,
             CandidateMeanings = () => _engine.Settings.ShowCandidateMeanings,
             ShowTypedKeys = () => _engine.Settings.ShowTypedKeys,
@@ -92,6 +95,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _autoSwitchModeItem = new ToolStripMenuItem("IME 自動切替 (Microsoft IME を使う)", null, (_, _) => SetMode(InputMode.AutoSwitch));
         _tsfModeItem = new ToolStripMenuItem("Meltype IME (入力欄に直接入力)", null, (_, _) => SetMode(InputMode.Tsf));
         menu.Items.Add(_statusItem);
+        // MeltKelp #35: バージョンと zenz の状態 (開くたびに更新する)
+        _versionItem = new ToolStripMenuItem($"バージョン: {AppInfo.Version}") { Enabled = false };
+        _zenzItem = new ToolStripMenuItem { Enabled = false };
+        _zenzPlaceItem = new ToolStripMenuItem { Enabled = false };
+        menu.Items.Add(_versionItem);
+        menu.Items.Add(_zenzItem);
+        menu.Items.Add(_zenzPlaceItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_enabledItem);
         menu.Items.Add(_tsfModeItem);
@@ -149,6 +159,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add("終了", null, (_, _) => ExitThread());
         menu.Opening += (_, _) => startup.Checked = Startup.IsEnabled;
         menu.Opening += (_, _) => UpdateStatus();
+        menu.Opening += (_, _) =>
+        {
+            var (state, place) = _composition.ZenzStatus;
+            _zenzItem.Text = $"LLM (zenz): {state}";
+            _zenzPlaceItem.Visible = place is not null;
+            _zenzPlaceItem.Text = place is null ? "" : $"展開場所 / デバイス: {place}";
+        };
 
         _tray = new NotifyIcon { ContextMenuStrip = menu, Visible = true };
         _tray.DoubleClick += (_, _) => ToggleEnabled();

@@ -167,7 +167,7 @@ public enum AppProfile
 /// config.json の内容。値はすべて保守的な初期値にしてある (設計書 §18)。
 /// インスタンスは不変として扱い、変更時は Clone して差し替える。
 /// </summary>
-public sealed class Settings
+public sealed partial class Settings
 {
     // 型の情報はビルド時に作ったもの (SettingsJsonContext)。Mac・Linux の NativeAOT でも読める (issue #151)。
     // 字下げ・コメントと末尾の , を許す・列挙型は名前で読み書き は SettingsJsonContext の属性で指定している。
@@ -261,26 +261,9 @@ public sealed class Settings
      Description("変換中に同じ候補で少し (約 1.5 秒) 止まると、その候補の意味をウィクショナリー日本語版から候補の一覧の横に出します (日本語の意味が無い語は JMdict の英訳: 橋 → bridge)。同音異義語を選ぶときの手がかりに。")]
     public bool ShowCandidateMeanings { get; set; } = true;
 
-    // MeltKelp #27: 設定画面では下の TypedKeysDisplay (形式のプルダウン) で選ぶ。ON / OFF はこのキーのまま持つ (今までの config.json を引き継ぐ)
+    // MeltKelp #27: 設定画面では Settings.MeltKelp.cs の TypedKeysDisplay (形式のプルダウン) で選ぶ。ON / OFF はこのキーのまま持つ (今までの config.json を引き継ぐ)
     [Browsable(false)]
     public bool ShowTypedKeys { get; set; } = true;
-
-    [Category("1. 全般"), DisplayName("打ったキーを表示"),
-     Description("打ったキーを小さく出します。Meltype キーボードでは変換ボックスの文字の下に、Meltype IME では候補の一覧の上に出します。打ち間違いに気づきやすくなります。ローマ字: kyouhagoogle / ひらがな: きょうはgoogle / ひらがな (単語ごとに空白): きょう は google (英語と判定した部分は打ったまま。単語の区切りは Microsoft IME で調べ、調べられないときは空白なし)。ひらがなは、変換ボックスの文字と同じときは出しません。")]
-    [JsonIgnore]
-    public TypedKeysStyle TypedKeysDisplay
-    {
-        get => ShowTypedKeys ? TypedKeysFormat : TypedKeysStyle.None;
-        set
-        {
-            ShowTypedKeys = value != TypedKeysStyle.None;
-            if (value != TypedKeysStyle.None) TypedKeysFormat = value;
-        }
-    }
-
-    /// <summary>MeltKelp #27: 打ったキーを出すときの形式 (出さないときも、次に出すときのために残す)。</summary>
-    [Browsable(false)]
-    public TypedKeysStyle TypedKeysFormat { get; set; } = TypedKeysStyle.Romaji;
 
     [Category("1. 全般"), DisplayName("打ち間違いを直す"),
      Description("Space・Enter で変換・確定するときに打ち間違いを直します。ローマ字: 読めない子音が残ったとき、隣のキーの押し間違い・入れ替わり・抜けを 1 文字だけ直します (onegaishimsu → お願いします、sumimasne → すみません。よく使う語の読みになるときだけ)。英語: Windows の自動修正の一覧にある打ち間違いを直します (teh → the、recieve → receive)。")]

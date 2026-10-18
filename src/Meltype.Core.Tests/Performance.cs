@@ -46,8 +46,9 @@ internal static class Performance
 
         var mozc = Henkan.Engine;
         IKanjiConverter? inner = mozc ?? Henkan.FallbackConverter;
+        inner = PerformanceZenz.Wrap(inner, mozc is null ? null : mozc.Candidates); // MeltKelp #2: 採点の分も測る
         var converter = inner is null ? null : new TimedConverter(inner);
-        var more = mozc is null ? null : new TimedCandidates(mozc.Candidates);
+        var more = mozc is null ? null : new TimedCandidates(PerformanceZenz.Candidates(inner, mozc.Candidates)); // MeltKelp #2: アプリと同じく zenz の一覧
         CompositionTests.Keyboard Keyboard() => new(live: true, converter: converter, moreCandidates: more is null ? null : more.Lookup,
             userDictionary: new UserDictionary(null), translations: Henkan.TranslationDictionary);
 
@@ -98,6 +99,7 @@ internal static class Performance
             foreach (var c in cases)
             {
                 mozc?.ClearCache();
+                PerformanceZenz.ClearCache(); // MeltKelp #2
                 cold.Add((c, Type(c)));
                 warm.Add((c, Type(c)));
             }
@@ -346,8 +348,10 @@ internal static class Performance
     }
 
     /// <summary>変換エンジンを呼んだ回数と時間を数える (覚えさせない: ILearningConverter を持たない)。</summary>
-    private sealed class TimedConverter(IKanjiConverter inner) : IKanjiConverter
+    private sealed class TimedConverter(IKanjiConverter inner) : IKanjiConverter, IPrecedingTextReceiver
     {
+        public void SetPrecedingText(string? text) => (inner as IPrecedingTextReceiver)?.SetPrecedingText(text); // MeltKelp #2: zenz にキャレットの前の文字を渡す
+
         private long _ticks;
         public int Calls { get; private set; }
         public double Milliseconds => Stopwatch.GetElapsedTime(0, _ticks).TotalMilliseconds;

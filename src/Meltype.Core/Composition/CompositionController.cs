@@ -90,7 +90,7 @@ public interface ICompositionHost
 public sealed record ReconversionSelection(string Text, string Reading);
 
 /// <summary>CompositionController の設定と、外の判定器へのつなぎ。</summary>
-public sealed record CompositionOptions
+public sealed partial record CompositionOptions
 {
     /// <summary>打ったそばから漢字に変換して見せるか。</summary>
     public Func<bool> LiveConversion { get; init; } = () => false;
@@ -144,12 +144,6 @@ public sealed record CompositionOptions
 
     /// <summary>打ったキー (ローマ字) を変換ボックスに出すか (設定、issue #224)。</summary>
     public Func<bool> ShowTypedKeys { get; init; } = () => false;
-
-    /// <summary>MeltKelp: 打ったキーを出すときの形式 (ローマ字・ひらがな・単語ごとに空白を入れたひらがな。MeltKelp #27)。</summary>
-    public Func<TypedKeysStyle> TypedKeysFormat { get; init; } = () => TypedKeysStyle.Romaji;
-
-    /// <summary>MeltKelp: 打ったキーのひらがなを単語に区切る (形態素解析)。null なら区切らない。</summary>
-    public Func<string, IReadOnlyList<string>?>? TypedKeysWords { get; init; }
 
     /// <summary>変換前の Tab で変換を始めるか (設定、issue #219)。</summary>
     public Func<bool> TabConversion { get; init; } = () => false;
@@ -1396,6 +1390,7 @@ public sealed class CompositionController
     /// </summary>
     private List<Clause> ConvertJapanese(string kana)
     {
+        (_converter as IPrecedingTextReceiver)?.SetPrecedingText(_precedingText); // MeltKelp #2: zenz の文脈
         // ローマ字として読めずに残った英字 (こほぃc の c) と半角の記号 (... @) は、変換エンジンに渡すと別の記号 (© ．．． ＠) にされるので、
         // そのままの文節にする。数字は、記号・英字とつながっていればそのまま (3.0 の 3 を 1 文字だけ渡すと ❸ にされる)、
         // それ以外は変換エンジンに渡す (2026ねん → 2026年)。

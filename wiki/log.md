@@ -92,6 +92,40 @@ grep "^## \[" wiki/log.md | tail -5
   #14 の `--repo` / `-R` は、全文の正規表現ではなくマージごとの語から取るようにした。
   agy レビューの指摘(CRLF のヒアドキュメントで終端を見失い素通しになる)を再現して直した。[[recurring-review-findings]] に実例を足した。
 
+## [2026-10-18] ingest | PR #26 zenz で漢字変換の候補を文脈つきに並べ替える
+- 新規: [[zenz-rerank]]
+- 更新: [[context-rerank-lessons]], [[overview]], [[build-install]], [[engine-base-choice]], [[recurring-review-findings]]
+- 備考: #2。`HybridConverter` を `ZenzRerankingConverter` で包み、imev の採点(`LlmScorer::Impl::Rank()`)を C# に移した。
+  imev のプロンプトのタグが誤り(U+E200〜。正しくは U+EE00〜)で、imev #33 の「対数確率が鈍い」と、かなの候補を外した理由(写しのカタカナが勝つ)は
+  これが原因だった。タグを直したうえで、かなの候補も採点に入れた(Issue の時点の「外す」から変えた)。llama.dll は b4846 のものしか読み込まない。
+  英単語を挟んだ同じ入力の前の区間が文脈に入らない件は #24。
+  実機の確認で 2 つ直した: モデルの読み込みを起動時に始める(最初の変換で始めると 1 回目が並べ替わらない)、文脈から前の行を外す
+  (メモ帳の前の行「…講演」に引っぱられて 街の + こうえん → 公演 になった)。
+  agy レビューの指摘(採点できなかった変換の後も、↑↓ の一覧が前の文脈の順で並ぶ)をテストで再現して直し、[[recurring-review-findings]] に種類を足した。
+  2 回目の agy レビューの指摘 2 件(1 回の変換で予算を 2 回取って採点し直す・`--perf` の計測用ラッパーが文脈を渡さない)も直し、
+  [[recurring-review-findings]] に種類を足した。3 回目の指摘(予算を過ぎた後の呼び出しで、控えてある採点を使わない)も再現して直した。
+  ユーザーの判断で、この作業を MeltKelp 0.1.0 とした。上流の版 1.2.1 は変えず、MeltKelp の版を別に持つ([[overview]])。タグは `meltkelp-v0.1.0`。
+
+## [2026-10-18] ingest | PR #30 zenz の採点を GPU(Vulkan)で動かせるようにする
+- 更新: [[zenz-rerank]], [[build-install]]
+- 備考: llama.cpp b4846 の Vulkan 版を CPU 版と並べて読み込める版に足し、`Install-ZenzRuntime.ps1 -Gpu` で置けるようにした。
+  手元の RX 9060 XT で、1 キー cold の p95 が約 40ms → 17ms。初めての形の decode が 200ms 前後かかるのを実測で見つけ、
+  読み込みの最後にトークンの数を変えて空回しするようにした。GPU では abort callback が効かないことも書いた。
+
+## [2026-10-18] ingest | PR #32 zenz を CPU と GPU のどちらで動かすかを設定で選べるようにする
+- 更新: [[zenz-rerank]], [[build-install]]
+- 備考: CPU 版を `zenz\cpu`、Vulkan 版を `zenz\vulkan` に並べて置き、設定「zenz を GPU で動かす」で選ぶ。Vulkan 版 1 つで
+  `n_gpu_layers` を切り替える案は、0 にしても GPU を使い続けるので、ユーザーの判断で採らなかった。同じ名前の DLL を 1 つのプロセスで
+  読み替えられないので、切り替えは起動し直したときに効く。
+
+## [2026-10-18] ingest | PR #34 zenz\vulkan が垂直タブに崩れていたのを直す
+- 更新: [[zenz-rerank]], [[build-install]]
+- 備考: PR #32 で文字列を置き換えたときに `\v` がエスケープとして解釈され、コメント・スクリプトのヘルプ・Wiki の 5 か所が崩れていた。動作には影響しない。
+
+## [2026-10-18] ingest | #35 トレイのメニューにバージョンと zenz の状態を出す
+- 更新: [[zenz-rerank]], [[upstream-update-stop]]
+- 備考: 行番号の参照がずれたのを直した(upstream-update-stop)。
+
 ## [2026-10-18] ingest | PR #28 打ったキーの表示形式を選べるようにした(#27)
 - 新規: [[typed-keys-display]]
 - 更新: [[overview]]

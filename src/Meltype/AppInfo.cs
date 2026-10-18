@@ -36,7 +36,7 @@ internal static class AppInfo
         typeof(AppInfo).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "?";
 
     public static string AboutText => $"""
-        Meltype {Version}
+        {Config.MeltKelpInfo.Title(Version)}
         Copyright (C) 2026 雪代 / Yukishiro (@yksr_melt / @yksr-melt)
 
         このプログラムはフリーソフトウェアです。GNU General Public License

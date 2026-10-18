@@ -2,7 +2,7 @@
 type: operation
 summary: MeltKelp をビルドして手元の PC に入れ直し、実機で変換を確かめる手順。ローカルドライブで完結させる理由と、Chrome で Meltype IME が動かない件(ESET と署名)
 updated: 2026-10-18
-related: [overview, engine-base-choice, upstream-update-stop]
+related: [overview, engine-base-choice, upstream-update-stop, zenz-rerank]
 ---
 
 # ビルドと入れ直し・実機での確認
@@ -39,6 +39,18 @@ CI は実際のアプリでの入力を見ないので、この確認は省略�
    コピーし、Meltype IME を登録する(管理者権限の確認が出る)。公式の Meltype が入っていれば上書きする(置き換え前提)。
    開発用の `Install-Meltype.ps1` はリポジトリの中の `app-build\` から動かすので、worktree を消すと壊れる。確認には使わない。
 
+   zenz の並べ替え([[zenz-rerank]])を確かめるなら、ランタイムも置く(初回だけ。`Install.cmd` はこのフォルダーに触らない)。
+   置いた後に Meltype を起動し直し、トレイの「ログ / 判定理由」に「zenz: 読み込みました」が出ることを確かめる。
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\Install-ZenzRuntime.ps1   # imev の一式があれば -Source $env:LOCALAPPDATA\MozcRerank
+   ```
+
+   GPU で採点するなら `-Gpu` を付けてもう 1 回実行する(Vulkan 版を `zenz\vulkan` に置く。CPU 版は `zenz\cpu`)。両方置けば、設定
+   「zenz を GPU で動かす」で選べる(起動し直すと効く。[[zenz-rerank]] の「GPU(Vulkan)で採点する」)。動いている Meltype が DLL を掴んでいると
+   上書きできないので、置き直すときはトレイから終了してから実行し、その後で `Install.cmd` か Meltype の起動で読み込ませる。
+   GPU で動いているかは、ログの「zenz: 読み込みました (GPU (Vulkan)・…)」か、`tasklist /M ggml-vulkan.dll` に Meltype.exe が出るかで分かる。
+
 4. **上流の更新が止まっているか確かめる**(上流の取り込みの後は必ず)。トレイのアイコン →「更新」に「自動で更新する」が無く、
    「今すぐ更新を確認」を押すと止めている旨が出ること。出なければ上流のリリースで公式版に戻される([[upstream-update-stop]])。
 
@@ -47,7 +59,8 @@ CI は実際のアプリでの入力を見ないので、この確認は省略�
    - Meltype キーボード: トレイのアイコンを右クリック →「Meltype キーボード (変換ボックスで入力)」(アイコンは通知領域の「^」の中に
      隠れていることがある。見えている「あ」は Meltype IME の入力インジケーターで、右クリックしてもこのメニューは出ない)。変換ボックスで入力し、
      Enter で確定した文字列が入力欄に入る
-   - 例文は自分で用意したものを使う。並べ替え(#2)の確認なら、文脈「劇団の千秋楽の」+ こうえん → 公演 など
+   - 例文は自分で用意したものを使う。並べ替え(#2)の確認なら、文脈「劇団の千秋楽の」+ こうえん → 公演 など。
+     Mozc が学習した語は zenz が動かせることがあるので([[zenz-rerank]] の「学習との順序」)、未学習の語で確かめる
    - **成功の判定:** 4 通り(メモ帳 / Chrome × 2 モード)で変換・確定でき、期待どおりの候補が出る。Chrome で Meltype IME が
      読み込まれないときは、下の ESET の件かを切り分けて PR 本文に書く
 
@@ -58,6 +71,9 @@ CI は実際のアプリでの入力を見ないので、この確認は省略�
    dotnet run -c Release --project src/Meltype.Core.Tests -- --perf before.json
    dotnet run -c Release --project src/Meltype.Core.Tests -- --perf-compare before.json after.json
    ```
+
+   zenz のランタイムがあれば `--perf` も zenz で包んで測る(`MELTKELP_ZENZ=0` で包まない)。既定の例文は英単語まじりの短い文で
+   zenz がほとんど採点しないので、zenz の分を測るなら `tools/zenz-rerank-cases.tsv` を例文のファイルに渡す。
 
 ## 落とし穴
 
@@ -120,4 +136,5 @@ imev で踏んだ。`//...` が MSYS にパス変換されるので、`MSYS_NO_P
 
 | 日付 | 実施者 | 結果 |
 | --- | --- | --- |
+| 2026-10-18 | ユーザー + エージェント | PR #26(#2)。Mozc ヘルパーは入っていた MeltKelp のもの(公式 1.2.1 由来)を流用、zenz のランタイムは `Install-ZenzRuntime.ps1 -Source`(imev の一式)。メモ帳・Chrome × 2 モードの 4 通りで、劇団の千秋楽の + こうえん → 公演・著名な研究者の → 講演・街の → 公園・「劇団の千秋楽の」を確定してから こうえん → 公演。打鍵のもたつきは気にならなかった。1 回目は Install.cmd が効いておらず古い版のままだった(DLL の日付で気付いた)。2 回目は前の行が文脈に入って 街の → 公演 になり、直した |
 | 2026-10-17 | ユーザー + エージェント | PR #9(#3)。Mozc ヘルパーは公式 1.2.1 のものを流用。メモ帳・Chrome × 2 モードの 4 通りで変換できた(Chrome でも Meltype IME が動いた)。トレイの「更新」に「自動で更新する」が無く「今すぐ更新を確認」で止めている旨が出る・設定に「9. 更新」が無い・`ready.txt` を置いて起動し直しても適用されない |
