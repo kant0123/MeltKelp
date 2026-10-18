@@ -135,6 +135,6 @@ grep "^## \[" wiki/log.md | tail -5
 - 備考: 打ったキーの表示がメモ帳では出てサクラエディタでは出ない、という報告を調べた結果。起動しっぱなしの 32 bit アプリが
   改名された古い DLL(`.old`)を読み込んだままだった。コードの変更は無い。
 
-## [2026-10-18] ingest | PR #41 パッケージの削減で System.Security.Cryptography.dll が消え、zenz が読み込まれなかったのを直す
+## [2026-10-18] ingest | PR #43 パッケージの削減で System.Security.Cryptography.dll が消え、zenz が読み込まれなかったのを直す
 - 更新: [[build-install]]
 - 備考: #40。`Build-Package.ps1` の削減は自己診断で読み込まれたアセンブリしか残さず、自己診断は zenz を読み込まない。落とし穴の節を足した。
