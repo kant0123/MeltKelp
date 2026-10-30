@@ -619,3 +619,109 @@ def test_cmd_check_uses_repo_for_info_and_comments(monkeypatch, capsys):
     args = type("A", (), {"pr": 50, "repo": "o/r"})()
     assert ar.cmd_check(args) == 0
     assert seen == {"info": "o/r", "comments": "o/r"}
+
+
+# --- --upstream: 上流の取り込み PR は上流に対する MeltKelp の差分だけを見せる (#44) ------------
+def _git(repo, *args):
+    out = ar.git(*args, cwd=repo)
+    return out.strip()
+
+
+def _write(repo, files):
+    for name, body in files.items():
+        path = repo / name
+        if body is None:
+            path.unlink()
+        else:
+            path.write_text(body, encoding="utf-8", newline="\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "c")
+    return _git(repo, "rev-parse", "HEAD")
+
+
+@pytest.fixture
+def sync_repo(tmp_path, monkeypatch):
+    """分岐点 → base (MeltKelp) と upstream に分かれ、head で upstream を merge したリポジトリ。"""
+    for key, value in {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
+                       "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com",
+                       "GIT_CONFIG_GLOBAL": str(tmp_path / "gitconfig"), "GIT_CONFIG_NOSYSTEM": "1"}.items():
+        monkeypatch.setenv(key, value)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    fork = _write(repo, {"up.txt": "a\n", "hook.cs": "x\n", "gone.txt": "g\n", "日本語 名.txt": "j\n"})
+    base = _write(repo, {"hook.cs": "x\nhook\n", "meltkelp.md": "m1\n", "mk_old.md": "o\n"})
+    _git(repo, "checkout", "-q", "-b", "upstream", fork)
+    upstream = _write(repo, {"up.txt": "b\n", "new.txt": "n\n", "gone.txt": None, "hook.cs": "y\nx\n", "日本語 名.txt": "k\n"})
+    _git(repo, "checkout", "-q", "-b", "sync", base)
+    _git(repo, "merge", "-q", "--no-ff", "-m", "merge", upstream)
+    head = _write(repo, {"meltkelp.md": "m2\n", "mk_old.md": None})
+    return repo, fork, base, upstream, head
+
+
+def test_upstream_sync_diff_shows_only_meltkelp_delta(sync_repo):
+    repo, _, base, upstream, head = sync_repo
+    diff, same, up = ar.upstream_sync_diff(upstream, base, head, cwd=repo)
+    assert up == upstream
+    # up.txt・new.txt・gone.txt (両方で消えた)・日本語 名.txt は上流と同じ
+    assert same == 4
+    assert ar.changed_paths(diff) == ["hook.cs", "meltkelp.md", "mk_old.md"]
+    # 上流のファイルは上流に対する差分 (差し込み口の行だけ)、MeltKelp のファイルはこの PR での変更
+    assert "+hook" in diff and "+y" not in diff
+    assert "-m1" in diff and "+m2" in diff
+    assert "deleted file" in diff
+
+
+def test_upstream_sync_diff_keeps_file_upstream_deleted(sync_repo):
+    repo, _, base, upstream, _ = sync_repo
+    # 上流が消したファイルを MeltKelp が残したら、上流に対する差分 (ファイル全体の追加) として見せる
+    head = _write(repo, {"gone.txt": "g\nkept\n"})
+    diff, _, _ = ar.upstream_sync_diff(upstream, base, head, cwd=repo)
+    assert "gone.txt" in ar.changed_paths(diff)
+    assert "+kept" in diff and "+g" in diff
+
+
+def test_upstream_sync_diff_rejects_non_sync_prs(sync_repo):
+    repo, fork, base, upstream, head = sync_repo
+    with pytest.raises(ar.ReviewError, match="含まれていません"):
+        ar.upstream_sync_diff(upstream, base, base, cwd=repo)
+    with pytest.raises(ar.ReviewError, match="既に含まれています"):
+        ar.upstream_sync_diff(fork, base, head, cwd=repo)
+    with pytest.raises(ar.ReviewError, match="ローカルにありません"):
+        ar.upstream_sync_diff("c" * 40, base, head, cwd=repo)
+
+
+def test_prompt_and_report_say_it_is_an_upstream_sync(tmp_path):
+    note = ar.UPSTREAM_NOTE.format(upstream=SHA, upstream_short=SHA[:7], same=12)
+    prompt = ar.build_prompt("diff --git a/x b/x\n", ar.FALLBACK_DOMAIN, note=note)
+    assert prompt.index("上流 Meltype の取り込み") < prompt.index("# レビュー対象の差分")
+    report = ar.render([], OTHER, "m", "ime", {"upstream": SHA, "upstream_same": 12})
+    assert f"`{SHA[:7]}` に対する MeltKelp の差分だけ" in report and "12 件" in report
+    # マーカーの形は変えない (merge hook がそのまま判定できる)
+    assert ar.check_merge(report, OTHER)[0]
+
+
+def test_cmd_review_with_upstream_does_not_use_pr_diff(monkeypatch, tmp_path):
+    seen = {}
+    monkeypatch.setattr(ar, "pr_info", lambda pr, repo=None: {"number": 7, "headRefOid": OTHER, "baseRefOid": SHA, "state": "OPEN"})
+    monkeypatch.setattr(ar, "ci_state", lambda pr: (True, "ok"))
+    monkeypatch.setattr(ar, "gh", lambda *a, **k: pytest.fail(f"gh {a} を呼んだ"))
+
+    def fake_sync(upstream, base, head, cwd=None):
+        seen["sync"] = (upstream, base, head)
+        raise ar.ReviewError("stop")
+    monkeypatch.setattr(ar, "upstream_sync_diff", fake_sync)
+    args = type("A", (), {"pr": 7, "upstream": "upstream/main", "max_chars": 10})()
+    with pytest.raises(ar.ReviewError, match="stop"):
+        ar.cmd_review(args)
+    assert seen["sync"] == ("upstream/main", SHA, OTHER)
+
+
+def test_upstream_sync_diff_shows_upstream_changes_dropped_by_merge(sync_repo):
+    repo, _, base, upstream, _ = sync_repo
+    # 衝突を MeltKelp 側 (base) のまま解いて上流の変更を捨てた・上流が消したファイルを base のまま残した・
+    # 上流が足したファイルを消した。どれも base...head には出ないが、上流と違うので見せる
+    head = _write(repo, {"hook.cs": "x\nhook\n", "gone.txt": "g\n", "new.txt": None})
+    diff, _, _ = ar.upstream_sync_diff(upstream, base, head, cwd=repo)
+    assert {"hook.cs", "gone.txt", "new.txt"} <= set(ar.changed_paths(diff))
+    assert "-y" in diff

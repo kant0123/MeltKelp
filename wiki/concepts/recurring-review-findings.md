@@ -1,7 +1,7 @@
 ---
 type: concept
 summary: レビューで妥当と判定された指摘を誤りの種類ごとに集約した台帳。着手時と push 前に読む
-updated: 2026-10-18
+updated: 2026-10-30
 related: [overview, zenz-rerank]
 ---
 
@@ -197,6 +197,21 @@ push 前に確かめること:
 実例:
 
 - MeltKelp PR #26 — `src/Meltype.Core.Tests/Performance.cs TimedConverter` — `--perf` で zenz のデコレーターを計測用の `TimedConverter` で包み、キャレットの前の文字が zenz に届いていなかった(`CompositionController.ConvertJapanese()` の `as IPrecedingTextReceiver` が null になる経路をコードで確認・修正)
+
+### 見る対象の一覧を片側の変化からしか取らず、もう片側だけで起きた変化を見落とす
+
+2 つの版を比べる処理で、対象の一覧(変わったファイル・変わった項目)を片方の差分だけから作る。もう片方だけで
+変わったもの、あるいは「変えるべきだったのに変わらなかったもの」(取り込むはずの変更を捨てた)が一覧に入らず、
+黙って検査から抜ける。うまくいった場合の例だけで試すと表に出ない。
+
+push 前に確かめること:
+
+- 一覧を作る差分の範囲は、比べる 2 つの版のどちらで起きた変化も拾うか
+- 「本来変わるはずが変わらなかった」もの(取り込みの取りこぼし・巻き戻し)を拾う例をテストに入れたか
+
+実例:
+
+- MeltKelp PR #45 — `review/agy_review.py upstream_sync_diff()` — 対象を PR の差分(`base...head`)だけから取り、衝突を MeltKelp 側のまま解いて上流の変更を捨てたファイルがレビューの差分から消えていた(テストで再現・修正)
 
 ### 再試行・再実行で前回の成果物を上書きする
 
