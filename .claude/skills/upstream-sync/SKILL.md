@@ -3,7 +3,7 @@ name: upstream-sync
 description: >
   上流 Meltype (yksr-melt/Meltype) の更新を MeltKelp に取り込む手順。worktree で git merge upstream/main し、
   衝突を方針どおりに解き、PR → CI → agy レビュー → マージまで進める。上流が足したワークフローの無効化、
-  タグを push しない理由、差分が agy レビューの上限を超えたときの分け方を含む。
+  タグを push しない理由、agy レビューで上流に対する MeltKelp の差分だけを見せる方法(`--upstream`)を含む。
   「上流を取り込んで」「Meltype の新しい版を入れて」「upstream に追いついて」と言われたとき、
   上流の新しいリリース・修正を MeltKelp で使いたいときに使う。上流へ何かを出す作業には使わない(出さない)。
 ---
@@ -37,9 +37,12 @@ git diff --name-status origin/main...upstream/main -- .github/workflows
   - `src/Meltype/Composition/CompositionService.cs`・`src/Meltype.Core/Composition/HybridConverter.cs`・
     `src/Meltype.Core/Composition/KanjiConversion.cs` — zenz の差し込み口と、MeltKelp が実装するインターフェース(#2)
   - `src/Meltype.Core/Config/Settings.cs` — 設定キーの意味・既定値
-- **差分が大きいとき(agy レビューの上限 30 万文字を超えそうなとき)は分けて取り込む。** 上流のタグ・リリースの
-  コミットごとに `git merge <コミット>` で段階的に入れ、PR も分ける。`--max-chars` で上限を上げて 1 回で通さない
-  (レビューの精度が落ちる)。上限に当たらないよう、上流の更新はこまめに取り込む。
+- **差分の大きさでは PR を分けない。** agy レビューは `--upstream` で上流に対する MeltKelp の差分だけを見るので
+  (手順 6)、上流の変更が何十万文字あっても上限 30 万文字に当たらない(v1.2.2-pre.1 → v1.4.0 で PR の差分約 260 万文字、
+  レビューに渡す差分約 4.6 万文字。#44)。分けると PR ごとに実機での確認が要るだけになる。
+- **どこまで取り込むかは上流の版で決める。** 既定は上流の最新の正式版(タグ `vX.Y.Z` のコミット)。プレリリース版
+  (`-pre.N`)と、その先の main はユーザーに確かめてから入れる(上流が「不具合が含まれることがある」と告知している)。
+  以下の `upstream/main` は、取り込むコミットに読み替える。
 
 ## 2. Issue を確保して worktree を切る
 
@@ -122,7 +125,17 @@ gh api -X PUT repos/kant0123/MeltKelp/actions/permissions -F enabled=true
 - 足されたワークフローと、止めたかどうか
 - 実機での確認の結果
 
-agy レビューの差分には上流の変更がすべて入る。上流のコード自体への指摘は、MeltKelp の差し込み口や前提
+agy レビューは `--upstream` に取り込んだ上流のコミットを付けて回す:
+
+```bash
+python review/agy_review.py --pr <PR番号> --upstream <取り込んだ上流のコミット>
+```
+
+PR の変更ファイルのうち、上流と同じ内容になったものは省き、上流にあるファイルは上流に対する MeltKelp の差分
+(差し込み口と衝突の解き方)、MeltKelp だけのファイルはこの PR での変更を見せる。上流のコミットが head に含まれ、
+base に含まれないことをスクリプトが確かめる(`--upstream` を付けずに回すと差分が上限を超えて止まる)。
+
+それでも上流のコード自体への指摘が出たら、MeltKelp の差し込み口や前提
 (パイプの形式・自動更新の停止・入力内容の扱い)を壊していない限り「スコープ外」とし、直すべきなら
 `kant0123/MeltKelp` に起票する(上流には報告しない)。
 

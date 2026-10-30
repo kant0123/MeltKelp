@@ -4,6 +4,7 @@
 使い方 (手順全体は agy-review スキル):
 
   python review/agy_review.py [--pr N]                 CI 緑を確認してレビューし、PR にコメントする
+  python review/agy_review.py --upstream SHA [--pr N]  上流の取り込み PR を、上流に対する MeltKelp の差分だけでレビューする
   python review/agy_review.py --triage FILE [--pr N]   差し戻しに対する評価を PR にコメントする
   python review/agy_review.py --check [--pr N]         マージしてよいかを判定する (merge hook 用)
 
@@ -137,8 +138,15 @@ def gh(*args, timeout=120):
     return proc.stdout
 
 
+def git(*args, cwd=None, timeout=120):
+    proc = run(["git", *args], timeout=timeout, cwd=cwd)
+    if proc.returncode != 0:
+        raise ReviewError(f"git {' '.join(args[:3])} が失敗しました: {proc.stderr.strip()}")
+    return proc.stdout
+
+
 def pr_info(pr, repo=None):
-    args = ["pr", "view"] + ([str(pr)] if pr else []) + (["--repo", repo] if repo else []) + ["--json", "number,headRefOid,state"]
+    args = ["pr", "view"] + ([str(pr)] if pr else []) + (["--repo", repo] if repo else []) + ["--json", "number,headRefOid,baseRefOid,state"]
     return json.loads(gh(*args))
 
 
@@ -299,6 +307,78 @@ def snapshot_dir(tmp_root=None):
 
 
 # ---------------------------------------------------------------------------
+# 上流の取り込み PR (--upstream)
+# ---------------------------------------------------------------------------
+# 取り込み PR の差分は上流の変更をすべて含み、上限を大きく超える。上流のコードへの指摘はもともとスコープ外
+# (upstream-sync スキル手順 6) なので、上流に対して MeltKelp が載せているもの (差し込み口・衝突の解き方・
+# MeltKelp だけのファイルの変更) だけを見せる (#44)。
+UPSTREAM_NOTE = """# この PR について: 上流 Meltype の取り込み
+
+この PR は上流 Meltype のコミット `{upstream}` を `git merge` で取り込むものです。下の差分は PR の差分そのものではなく、
+**上流に対して MeltKelp が載せているもの**だけです。
+
+- 上流にあるファイルは `git diff {upstream_short} <head>`、つまり**上流の版に対する MeltKelp の差し込み口**です。
+  衝突の解き方と、上流の変更の後も差し込み口が効いているかを見てください。
+- 上流に無いファイル(MeltKelp だけのファイル)は、この PR での変更です。
+- 上流の版と同じ内容になったファイル {same} 件は、上流をそのまま取り込んだので省いています。
+
+上流のコード自体への指摘は対象外です。MeltKelp の差し込み口や前提(Meltype IME とのパイプの形式・上流のリリースによる
+自動更新の停止・入力内容の扱い)を上流の変更が壊している場合だけ指摘してください。上流のファイルはスナップショットで読めます。
+"""
+
+
+def _is_ancestor(ancestor, rev, cwd=None):
+    proc = run(["git", "merge-base", "--is-ancestor", ancestor, rev], cwd=cwd)
+    if proc.returncode not in (0, 1):
+        raise ReviewError(f"git merge-base --is-ancestor が失敗しました: {proc.stderr.strip()}")
+    return proc.returncode == 0
+
+
+def _tree(rev, cwd=None):
+    """{パス: "mode type sha"}。内容とモードが同じかを比べるのに使う。"""
+    entries = {}
+    for item in git("ls-tree", "-r", "-z", "--full-tree", rev, cwd=cwd).split("\0"):
+        if item:
+            meta, path = item.split("\t", 1)
+            entries[path] = meta
+    return entries
+
+
+def upstream_sync_diff(upstream, base, head, cwd=None):
+    """(見せる差分, 上流と同じで省いたファイル数, 上流の SHA) を返す。
+
+    PR (base...head) で変わったファイルを次のように振り分ける。
+    - head の内容が上流と同じ → 上流をそのまま取り込んだので省く
+    - 上流にあって (上流が消したものも含む) 内容が違う → 上流に対する MeltKelp の差分 (git diff upstream head)
+    - 上流に無い (MeltKelp だけのファイル) → この PR での変更 (git diff base...head)
+    """
+    for rev, name in ((upstream, "上流のコミット"), (base, "PR の base"), (head, "PR の head")):
+        if run(["git", "cat-file", "-e", f"{rev}^{{commit}}"], cwd=cwd).returncode != 0:
+            raise ReviewError(f"{name} `{rev}` がローカルにありません。"
+                              "`git fetch origin` と `git fetch upstream --no-tags` をしてから実行してください。")
+    up = git("rev-parse", f"{upstream}^{{commit}}", cwd=cwd).strip()
+    if not _is_ancestor(up, head, cwd):
+        raise ReviewError(f"上流のコミット `{up[:7]}` が PR の head に含まれていません。--upstream には取り込んだコミットを渡してください。")
+    if _is_ancestor(up, base, cwd):
+        raise ReviewError(f"上流のコミット `{up[:7]}` は base に既に含まれています。"
+                          "上流の取り込み PR でなければ --upstream を付けずにレビューしてください。")
+    # 上流が知っているパス。上流が消したファイル (上流に無いが merge base にはある) も上流側のものとして扱う。
+    fork_point = git("merge-base", base, up, cwd=cwd).strip()
+    up_tree, head_tree, fork_tree = _tree(up, cwd), _tree(head, cwd), _tree(fork_point, cwd)
+    changed = [p for p in git("diff", "--name-only", "-z", "--no-renames", f"{base}...{head}", cwd=cwd).split("\0") if p]
+    parts, same = [], 0
+    for path in changed:
+        upstream_owned = path in up_tree or path in fork_tree
+        if upstream_owned and head_tree.get(path) == up_tree.get(path):
+            same += 1
+        elif upstream_owned:
+            parts.append(git("diff", "--no-renames", up, head, "--", path, cwd=cwd))
+        else:
+            parts.append(git("diff", "--no-renames", f"{base}...{head}", "--", path, cwd=cwd))
+    return "".join(parts), same, up
+
+
+# ---------------------------------------------------------------------------
 # Wiki
 # ---------------------------------------------------------------------------
 def _unquote_git_path(path):
@@ -385,7 +465,7 @@ ENVIRONMENT_NOTE = """## この環境の制約(agy CLI・ヘッドレス)
 """
 
 
-def build_prompt(diff, domain, snapshot=None, wiki_pages=(), changed=()):
+def build_prompt(diff, domain, snapshot=None, wiki_pages=(), changed=(), note=None):
     """参考資料 → 差分 → 指示の順に並べる。長い入力では末尾の指示の方が守られやすいため。"""
     invariants = json.loads(INVARIANTS_FILE.read_text(encoding="utf-8"))
     if domain not in invariants:
@@ -410,6 +490,8 @@ def build_prompt(diff, domain, snapshot=None, wiki_pages=(), changed=()):
         parts += ["# 参考資料 2: 関連する Wiki ページ", ""]
         for rel, text in wiki_pages:
             parts += [f"## {rel}", "", fence(text), ""]
+    if note:
+        parts += [note, ""]
     parts += [
         "# レビュー対象の差分",
         "",
@@ -648,6 +730,9 @@ def render_context(context):
     read = context.get("files_read", [])
     unread = [p for p in context.get("changed_existing", []) if p not in read]
     lines = ["<details><summary>参照した資料</summary>", ""]
+    if context.get("upstream"):
+        lines.append(f"- **上流の取り込み:** `{context['upstream'][:7]}` に対する MeltKelp の差分だけを見せた"
+                     f"(上流と同じ内容のため省いたファイル {context.get('upstream_same', 0)} 件)")
     lines.append("- 埋め込んだ Wiki: " + (", ".join(f"`{p}`" for p in context.get("wiki_included", [])) or "なし"))
     if context.get("wiki_omitted"):
         lines.append("- 予算超過で外した Wiki: " + ", ".join(f"`{p}`" for p in context["wiki_omitted"]))
@@ -713,7 +798,14 @@ def cmd_review(args):
         return 2
     print(f"PR #{pr} `{sha[:7]}`: CI {detail}")
 
-    diff = gh("pr", "diff", str(pr))
+    note, upstream_ctx = None, {}
+    if args.upstream:
+        diff, same, up = upstream_sync_diff(args.upstream, info["baseRefOid"], sha, cwd=REVIEW_DIR.parent)
+        note = UPSTREAM_NOTE.format(upstream=up, upstream_short=up[:7], same=same)
+        upstream_ctx = {"upstream": up, "upstream_same": same}
+        print(f"上流の取り込み: `{up[:7]}` と同じ内容のファイル {same} 件を省きます")
+    else:
+        diff = gh("pr", "diff", str(pr))
     if not diff.strip():
         raise ReviewError(f"PR #{pr} の差分が空です。")
     if len(diff) > args.max_chars:
@@ -728,9 +820,10 @@ def cmd_review(args):
         print(f"スナップショット {written} ファイル / Wiki {len(wiki_pages)} ページ"
               f"{f' (予算超過で {len(wiki_omitted)} ページ除外)' if wiki_omitted else ''}")
         print(f"agy ({args.model}) でレビュー中... 差分 {len(diff)} 文字")
-        prompt = build_prompt(diff, args.domain, root, wiki_pages, changed_existing)
+        prompt = build_prompt(diff, args.domain, root, wiki_pages, changed_existing, note)
         findings, raw = call_agy_with_retry(prompt, args.model, args.timeout, root)
         context = {
+            **upstream_ctx,
             "wiki_included": [rel for rel, _ in wiki_pages],
             "wiki_omitted": wiki_omitted,
             "files_read": files_read(raw, root),
@@ -834,6 +927,8 @@ def main():
     p.add_argument("--model", default=DEFAULT_MODEL, help=f"agy のモデル (既定: {DEFAULT_MODEL})")
     p.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_MIN, help="agy のタイムアウト (分)")
     p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS, help="差分の上限文字数")
+    p.add_argument("--upstream", metavar="COMMIT",
+                   help="上流の取り込み PR で、取り込んだ上流のコミット。上流に対する MeltKelp の差分だけをレビューする")
     p.add_argument("--wiki-chars", type=int, default=DEFAULT_WIKI_CHARS, help="埋め込む Wiki ページの合計文字数")
     p.add_argument("--no-post", action="store_true", help="PR にコメントせずローカルにだけ出力する")
     args = p.parse_args()
