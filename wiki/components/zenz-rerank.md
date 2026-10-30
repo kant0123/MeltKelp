@@ -1,7 +1,7 @@
 ---
 type: component
 summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点と CPU との切り替え
-updated: 2026-10-18
+updated: 2026-10-30
 related: [context-rerank-lessons, engine-base-choice, build-install, overview, recurring-review-findings]
 ---
 
@@ -18,11 +18,23 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview, r
 | `src/Meltype.Core/Composition/ZenzRerank.cs:68 ZenzRerankingConverter` | デコレーター本体。`Choose()` が 1 文節分の選び直し、`Candidates()` が ↑↓ の一覧の並べ替え |
 | `src/Meltype.Core/Composition/LlamaZenzScorer.cs:327 Rank()` | 採点。imev の `LlmScorer::Impl::Rank()` を C# に移したもの。`Load()` が版の確認と読み込み |
 | `src/Meltype.Core/Composition/CompositionController.cs:1393 ConvertJapanese()` | 差し込み口: 変換の直前に `_precedingText` を渡す 1 行 |
-| `src/Meltype/Composition/CompositionService.cs:37 CompositionService()` | 差し込み口: コンストラクターの中(84 行目あたり)で `HybridConverter` を包む |
+| `src/Meltype/Composition/CompositionService.cs:46 CompositionService()` | 差し込み口: コンストラクターの中(125 行目あたり)で `HybridConverter` を包む |
 | `scripts/Install-ZenzRuntime.ps1` | ランタイムを `%LOCALAPPDATA%\Meltype\zenz` に置く |
 
 上流のファイルへの変更は、ほかに `Settings`・`CompositionOptions` の `partial`(設定の `ZenzRerank` を別ファイルで足すため)、
 `TrayApplicationContext` の 2 行(設定の `ZenzRerank`・`ZenzUseGpu` を渡す)、`Meltype.Core.csproj` の `AllowUnsafeBlocks`、`--perf` の `Performance.cs` の 4 行だけ(zenz で包む・cold で控えを捨てる・計測用のラッパーが文脈を渡す・一覧を zenz のものにする)。
+
+## 上流の Zenzai との関係
+
+上流は v1.4.0 で Zenzai(zenz + llama-server によるかな漢字変換。設定「Zenzai を使う」、初期は OFF)を足した。上流は
+`HybridConverter` のコンストラクターに Zenzai を渡し、ON なら読み全体を Zenzai で変換して Mozc の文節に当てはめる。
+MeltKelp の並べ替えはその `HybridConverter` を外から包む形のまま載せ直した(#46)ので、**両方 ON だと Zenzai の結果の
+各文節の先頭をもう一度選び直す。** この組み合わせは確かめておらず、扱いは #47 で決める。
+
+- 並べ替えを Zenzai に置き換えなかったのは、方式が違うため。Zenzai は読みから文を生成し、自信が低い・遅い(400ms 超)・
+  文脈の無い短い読みでは使わない。並べ替えは変換エンジンの候補の中から選ぶだけで、候補を作らない([[engine-base-choice]]・
+  [[context-rerank-lessons]])
+- 上流の Zenzai は別プロセス(llama-server)、並べ替えは `Meltype.exe` の中の llama.cpp(`LlamaZenzScorer`)。ランタイムの置き場所も別
 
 ## 仕組みの要点
 

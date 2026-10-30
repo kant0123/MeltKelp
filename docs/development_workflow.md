@@ -201,7 +201,7 @@ rebase・squash はしない(上流の履歴を保ち、次の取り込みの me
 
 GitHub 上で何かを書き込む・公開する上流のワークフローは、ファイルを消さずに `gh workflow disable` で止めてある
 (消すと上流の取り込みのたびに衝突する)。止めたもの: `bot`・`cla`・`dotnet-update`・`linux`・`mac`・`notices`・
-`pr-checks`・`sponsors`・`winget`。理由は `wiki/overview.md`「運用」。**上流が新しいワークフローを足したら、
+`pr-checks`・`sponsors`・`winget`・`code-scanning`・`codeql`・`conflicts`・`policy`・`quality`・`web`。理由は `wiki/overview.md`「運用」。**上流が新しいワークフローを足したら、
 取り込みの PR で中身を読み、止めるべきものは `gh workflow disable` する**(`upstream-sync`)。
 
 ### `wiki-check`(オプション。MeltKelp では未導入)
