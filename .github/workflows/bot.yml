@@ -2,7 +2,8 @@
 #   Issue を作った・直したとき: OS のラベルと「要トリアージ」を付け、足りない情報を聞き、誤判定の報告なら最新のコードで打ってみて結果を返す。
 #   コメントの 1 行目のコマンド:
 #     だれでも: /repro /explain /ca /jht /help
-#     メンテナー (PR のみ): /test /pack /test-repro /test-jht /test-explain
+#     メンテナー (PR のみ): /test /pack /test-repro /test-jht /test-explain (どれも 1 語目に確かめた commit の SHA (40 桁)。PR の head と違えば動かさない)
+#     管理者: /release <版> /pre-release <版> (タグとリリースの下書きを作り、配布物のビルドを始める)
 # Issue・コメントの文は誰でも書けるので、run: の中に ${{ }} で埋め込まず、環境変数で値として渡す。
 # Pull Request のコードは、書き込みの権限を持たない job (pr) でだけ動かす。結果のコメントは別の job (report) が書く。
 # 漢字変換には最新リリースの meltype_mozc_helper を使う (毎回 Bazel ビルドしない)。
@@ -32,7 +33,7 @@ jobs:
       issues: write
     steps:
       # コードは checkout しない (pull_request_target で PR のコードを動かさない)
-      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const name = 'pr';
@@ -63,6 +64,8 @@ jobs:
       issues: write
       pull-requests: write
     outputs:
+      release_command: ${{ steps.parse.outputs.release_command }}
+      release_version: ${{ steps.parse.outputs.release_version }}
       action: ${{ steps.parse.outputs.action }}
       issue: ${{ steps.parse.outputs.issue }}
       keys: ${{ steps.parse.outputs.keys }}
@@ -79,7 +82,7 @@ jobs:
           persist-credentials: false
       - id: app
         if: vars.BOT_APP_ID != ''
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ vars.BOT_APP_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
@@ -87,6 +90,35 @@ jobs:
         run: node .github/bot/meltype-bot.mjs parse
         env:
           GITHUB_TOKEN: ${{ steps.app.outputs.token || github.token }}
+
+  # /release・/pre-release (管理者だけ): タグとリリースの下書きを作り、配布物のビルドを始める。
+  # 書き込みの権限はこの job だけに付ける (parse はだれのコメントでも動くため)。管理者かどうかは、書き込みの前に確かめる
+  release:
+    needs: parse
+    if: needs.parse.outputs.release_command != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          sparse-checkout: .github/bot
+          persist-credentials: false
+      - id: app
+        if: vars.BOT_APP_ID != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+      - run: node .github/bot/meltype-bot.mjs release
+        env:
+          GITHUB_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          BOT_DISPATCH_TOKEN: ${{ github.token }}
+          BOT_RELEASE_COMMAND: ${{ needs.parse.outputs.release_command }}
+          BOT_RELEASE_VERSION: ${{ needs.parse.outputs.release_version }}
 
   # main 上での repro / explain / ca / jht
   run:
@@ -151,13 +183,13 @@ jobs:
             $env:MELTYPE_MOZC = $env:MELTYPE_MOZC  # 同じヘルパーを共有
             dotnet run --project ../release/src/Meltype.Tests -c Release -- --repro "$env:KEYS" "$env:LAST" | Out-File "results/repro-$tag.json" -Encoding utf8
           }
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bot-results
           path: results/
           retention-days: 7
 
-  # PR のコードで test / pack / test-repro / test-jht / test-explain (メンテナーのみ。parse で author_association を確認済み)
+  # PR のコードで test / pack / test-repro / test-jht / test-explain (メンテナーのみ。parse で author_association と SHA を確認済み)
   pr:
     needs: parse
     if: contains(fromJSON('["test","pack","test-repro","test-jht","test-explain"]'), needs.parse.outputs.action)
@@ -222,13 +254,13 @@ jobs:
             dotnet run --project src/Meltype.Tests -c Release -- --repro "$env:KEYS" "$env:LAST" | Out-File results/repro-pr.json -Encoding utf8
           }
       - if: needs.parse.outputs.action != 'pack'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bot-results
           path: results/
           retention-days: 7
       - if: needs.parse.outputs.action == 'pack'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: meltype-pr-${{ needs.parse.outputs.issue }}
           path: dist/Meltype-test-*.zip
@@ -248,14 +280,14 @@ jobs:
         with:
           sparse-checkout: .github/bot
           persist-credentials: false
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         continue-on-error: true
         with:
           name: bot-results
           path: results/
       - id: app
         if: vars.BOT_APP_ID != ''
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ vars.BOT_APP_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}

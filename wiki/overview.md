@@ -1,7 +1,7 @@
 ---
 type: concept
 summary: MeltKelp とは何か・なぜ独立リポジトリのフォークで、上流に出さず、公式を置き換える前提なのか。各ページへの入口
-updated: 2026-10-18
+updated: 2026-10-30
 related: [engine-base-choice, context-rerank-lessons, build-install, recurring-review-findings, upstream-update-stop, upstream-report-stop, zenz-rerank, typed-keys-display]
 ---
 
@@ -89,7 +89,10 @@ Meltype の強みである英語と日本語の自動判定をそのまま使い
   - `sponsors`(README のスポンサー表示を更新する PR を作る)・`dotnet-update`(.NET の更新を Issue にする)— 予定で走って書き込む
   - `winget`(winget に提出する)— リリースで走る。MeltKelp はリリースしない
   - `mac`・`linux` — Mac 版・Linux 版のビルド。MeltKelp は Windows だけで、macOS は分数を 10 倍で食う
-- **残した上流のワークフロー:** `build`。`core` ジョブが macOS でも走るので、分数が足りなくなったら判断が要る
+  - 上流 v1.4.0 で足されたもの(#46。2026-10-30): `conflicts`・`policy`(bot が上流の Issue・PR にラベル・コメントを付ける。
+    `pull_request_target`・予定で走る)、`code-scanning`(CodeQL の結果を Issue・PR に書く)、`codeql`・`quality`(結果を
+    code scanning に上げる。予定・main への push で走る)、`web`(上流の Web サイトの検査。MeltKelp は使わない)
+- **残した上流のワークフロー:** `build` と `ime-tests`(v1.4.0 で足された、Core の入力の回帰テスト。読み取りだけ)。`core` ジョブが macOS でも走るので、分数が足りなくなったら判断が要る
   (`docs/development_workflow.md`)。
 - **ブランチ保護**: 正は `.github/branch-protection.json`(必須チェックは `checks` と `core-tests`)。保護設定は
   GitHub 側にあり、リポジトリのファイルからは見えない。**`test.yml` のジョブ名を変えたら、このファイルと保護設定の

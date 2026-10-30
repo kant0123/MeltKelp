@@ -12,6 +12,7 @@ internal static class TestRunner
     [STAThread]
     public static int Main(string[] args)
     {
+        using var spellChecker = Detection.WindowsSpellChecker.Shared;
         TestSupport.WordChecker = Detection.WindowsSpellChecker.Shared;
         // dotnet run --project src/Meltype.Tests -- --convert きょうはいいてんきです
         // で、Microsoft IME の変換エンジン (MSIME.Japan) が使えるかを確かめる。
@@ -95,7 +96,7 @@ internal static class TestRunner
                     keyboard.Type(c.ToString());
                     var view = keyboard.Host.View;
                     // 変換ボックスを通らずにアプリへ送ったキー (英数状態で英語と判定した打鍵など)
-                    var passed = string.Concat(keyboard.Host.Events.Skip(before).Where(e => e.StartsWith("passed:") || e.StartsWith("down:"))
+                    var passed = string.Concat(keyboard.Host.Events.Skip(before).Where(e => e.StartsWith("passed:", StringComparison.Ordinal) || e.StartsWith("down:", StringComparison.Ordinal))
                         .Select(e => (char)Convert.ToInt32(e[(e.IndexOf(':') + 1)..], 16)).Where(ch => char.IsAsciiLetterOrDigit(ch) || ch == ' ').Select(char.ToLowerInvariant));
                     Console.WriteLine($"  {c} → {(view is null ? "(なし)" : view.Converting ? "[" + string.Join("|", view.Clauses!) + "] 候補: " + string.Join(",", view.Candidates) : view.Text)}{(passed.Length > 0 ? $"  (アプリへ: {passed})" : "")}{(direct ? $"  [{(keyboard.Direct ? "英数" : "日本語")}]" : "")}");
                 }
@@ -128,6 +129,7 @@ internal static class TestRunner
         if (args.FirstOrDefault() == "--gen-emoji") { EmojiGenerator.Run(args[1], args[2], args[3]); return 0; }
         if (args.FirstOrDefault() == "--eval") { Quality.Print(Quality.Run()); return 0; }
         if (args.FirstOrDefault() == "--tip-server") return TipHarness.Server(int.TryParse(args.ElementAtOrDefault(1), out var seconds) ? seconds : 600);
+        if (args.FirstOrDefault() == "--focus-e2e") return FocusEndToEnd.Run();
         if (args.FirstOrDefault() == "--tip-e2e")
         {
             TipEndToEnd.ShotDirectory = args.ElementAtOrDefault(1);
@@ -138,7 +140,7 @@ internal static class TestRunner
         {
             // 調査用: 設定画面とユーザー辞書の画面を表示せずに画像にする。
             Application.EnableVisualStyles();
-            var engine = new MeltypeEngine(new Config.Settings(), null, null, null);
+            var engine = new MeltypeEngine(new Config.Settings(), null, null);
             using var invoker = new Control();
             invoker.CreateControl();
             using var service = new Composition.CompositionService(invoker, Composition.CompositionDetector.CreateDefault(), new Composition.CompositionOptions { UserDictionary = new Composition.UserDictionary(null) });

@@ -1,7 +1,7 @@
 ---
 type: concept
 summary: トレイの「不具合の報告・提案」「直した誤判定を報告」をトレイから消し、報告の URL が上流 Meltype の Issue 画面を開かないようにした理由と仕組み。上流の取り込みで AppInfo.cs・TrayApplicationContext.cs が衝突したときに読む
-updated: 2026-10-18
+updated: 2026-10-30
 related: [overview, upstream-update-stop]
 ---
 
@@ -17,7 +17,7 @@ MeltKelp は、上流のままだと上流 yksr-melt/Meltype の Issue の作成
 | 差し込み口 | 止めるもの |
 | --- | --- |
 | `src/Meltype/AppInfo.cs:17 GitHubReportUrl()`・`:23 MisdetectionReportUrl()`・`:28 ReportUrl()` | 報告の URL を、上流の Issue の画面ではなく `UpstreamReport.IssueUrl`(`kant0123/MeltKelp` の Issue の作成画面、クエリ無し)にする。報告の画面を開く 4 か所(`ReportDialog` の「フォームで報告」と GitHub のリンク・`CorrectionReportDialog`・`UpdateChangesDialog` の「報告する...」)がどれもここを通るので、入口を隠し損ねても上流には行かない。トレイから消した後もここを止めているのは、`UpdateChangesDialog` と、上流が今後足す入口のため |
-| `src/Meltype/UI/TrayApplicationContext.cs:43 TrayApplicationContext()` の「不具合の報告・提案...」「直した誤判定を報告...」の `Visible` | トレイにこの 2 項目を出さない。`ReportDialog`・`CorrectionReportDialog` はトレイからしか開かれないので、画面ごと使われなくなる |
+| `src/Meltype/UI/TrayApplicationContext.cs:46 TrayApplicationContext()` の「不具合の報告・提案...」「直した誤判定を報告...」の `Visible` | トレイにこの 2 項目を出さない。`ReportDialog`・`CorrectionReportDialog` はトレイからしか開かれないので、画面ごと使われなくなる |
 
 - 2 項目とも消したのはユーザーの判断(#8)。MeltKelp の Issue は開発者本人が立てるので、報告の画面を経由する必要が無い。
   最近のログはトレイの「ログ / 判定理由...」・データフォルダーの `meltype.log` で見られる

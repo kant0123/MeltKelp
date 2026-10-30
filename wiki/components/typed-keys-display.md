@@ -1,7 +1,7 @@
 ---
 type: component
 summary: 設定「打ったキーを表示」の形式(ローマ字・表示しない・ひらがな・単語ごとに空白を入れたひらがな)。上流の ON / OFF のキーを残したままプルダウンにした仕組みと、単語の区切りに Microsoft IME の形態素解析を使う理由
-updated: 2026-10-18
+updated: 2026-10-30
 related: [overview]
 ---
 
@@ -24,14 +24,14 @@ related: [overview]
 | --- | --- |
 | `src/Meltype.Core/Config/Settings.MeltKelp.cs:22 TypedKeysDisplay` | 設定画面のプルダウン。保存はしない(`JsonIgnore`)。上流の `ShowTypedKeys`(ON / OFF)と `TypedKeysFormat`(形式)に読み書きを振り分ける |
 | `src/Meltype.Core/Composition/TypedKeysFormatter.cs:18 Format()` | 形式ごとの文字列を作る。単語に区切れないときは区切らずに出す |
-| `src/Meltype.Core/Composition/CompositionController.cs:2504 TypedKeys()` | 上流への差し込み口(1 行)。`CompositionOptions.TypedKeysFormat`・`TypedKeysWords` は `CompositionOptions.MeltKelp.cs` に足した |
+| `src/Meltype.Core/Composition/CompositionController.cs:3047 TypedKeys()` | 上流への差し込み口(1 行)。`CompositionOptions.TypedKeysFormat`・`TypedKeysWords` は `CompositionOptions.MeltKelp.cs` に足した |
 | `src/Meltype/Composition/MsImeWords.cs:28 Split()` | Microsoft IME の形態素解析で、ひらがなを単語に区切る |
-| `src/Meltype/Composition/CompositionService.cs:38 CompositionService()` | コンストラクターで `MsImeWords`(フィールド `_words`)を `TypedKeysWords` に渡す差し込み口 |
+| `src/Meltype/Composition/CompositionService.cs:46 CompositionService()` | コンストラクターで `MsImeWords`(フィールド `_words`)を `TypedKeysWords` に渡す差し込み口 |
 
 ## 依存関係
 
 - 依存している: Microsoft IME(`MSIME.Japan` の IFELanguage)。Mozc を変換エンジンに選んでいても、単語の区切りには Microsoft IME を使う
-- 依存されている: Meltype キーボードの変換ボックス(`src/Meltype/Composition/CompositionWindow.cs:297 ShowsTyped()`)、
+- 依存されている: Meltype キーボードの変換ボックス(`src/Meltype/Composition/CompositionWindow.cs:277 ShowsTyped()`)、
   Meltype IME の候補の一覧(`native/tip/CandidateWindow.cpp` が `typed` を描く)
 
 ## 落とし穴

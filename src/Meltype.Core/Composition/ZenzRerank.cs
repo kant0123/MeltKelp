@@ -66,7 +66,8 @@ public sealed record ZenzRerankOptions
 /// 文節の数・読み・区切りは変えない (Text だけを差し替える) ので、候補を欠かしたり増やしたりしない。
 /// </summary>
 public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, IReadOnlyList<string>> candidates, IConversionScorer scorer,
-    Func<bool> enabled, ZenzRerankOptions? options = null) : IKanjiConverter, ILearningConverter, IPrecedingTextReceiver
+    Func<bool> enabled, ZenzRerankOptions? options = null)
+    : IKanjiConverter, ILearningConverter, IPrecedingTextReceiver, IWideContextConverter, IStandaloneConverter
 {
     private readonly ZenzRerankOptions _options = options ?? new ZenzRerankOptions();
     // (文脈, 読み, 候補) → 対数確率。候補ごとに控え、足りない候補だけを採点する (対数確率は候補ごとに別の系列で求めるので、
@@ -104,6 +105,17 @@ public sealed class ZenzRerankingConverter(IKanjiConverter inner, Func<string, I
     }
 
     public string? Convert(string hiragana) => inner.Convert(hiragana);
+
+    // 上流の HybridConverter が持つインターフェースは、包んでも隠さない (Controller は `_converter is ...` で見る。#46)。
+    // 中身が実装していなければ、Controller がそのインターフェースの無い変換エンジンにするのと同じにする。
+    public string? WideContext
+    {
+        get => (inner as IWideContextConverter)?.WideContext;
+        set { if (inner is IWideContextConverter wide) wide.WideContext = value; }
+    }
+
+    public string? ConvertStandalone(string hiragana) =>
+        inner is IStandaloneConverter standalone ? standalone.ConvertStandalone(hiragana) : inner.Convert(hiragana);
 
     public void Learn(string? context, IReadOnlyList<ConversionClause> clauses)
     {

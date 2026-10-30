@@ -197,6 +197,7 @@ push 前に確かめること:
 実例:
 
 - MeltKelp PR #26 — `src/Meltype.Core.Tests/Performance.cs TimedConverter` — `--perf` で zenz のデコレーターを計測用の `TimedConverter` で包み、キャレットの前の文字が zenz に届いていなかった(`CompositionController.ConvertJapanese()` の `as IPrecedingTextReceiver` が null になる経路をコードで確認・修正)
+- MeltKelp PR #48 — `src/Meltype.Core/Composition/ZenzRerank.cs ZenzRerankingConverter` — 上流 v1.4.0 が `HybridConverter` に足した `IWideContextConverter`・`IStandaloneConverter` を、包んだ zenz のデコレーターが実装しておらず、Zenzai を ON にしても広い文脈が渡らず、文節ごとの候補で Zenzai を余分に呼んでいた(コンパイルの失敗で再現・修正)。**上流を取り込んだら、包んでいる上流のクラスが増やしたインターフェースを確かめる**
 
 ### 見る対象の一覧を片側の変化からしか取らず、もう片側だけで起きた変化を見落とす
 

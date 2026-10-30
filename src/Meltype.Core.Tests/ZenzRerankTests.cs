@@ -330,6 +330,34 @@ internal static class ZenzRerankTests
         Assert.True(none.ConvertClauses("ほげ") is null, "変換エンジンが null なら null");
     }
 
+    [Test]
+    public static void Rerank_ForwardsWideContextAndStandaloneToInner()
+    {
+        // 上流の HybridConverter が持つ IWideContextConverter (Zenzai の広い文脈) と IStandaloneConverter (Zenzai を通さない変換) を、
+        // 包んだ外側でも隠さない (Controller は `_converter is IWideContextConverter` で見る。MeltKelp #46 の agy レビューの指摘)
+        var inner = new WideStandaloneConverter();
+        var converter = Create(inner, new FakeScorer());
+        var wide = (IWideContextConverter)converter;
+        wide.WideContext = "前の文。";
+        Assert.Equal("前の文。", inner.WideContext);
+        Assert.Equal("前の文。", wide.WideContext);
+        Assert.Equal("単独", ((IStandaloneConverter)converter).ConvertStandalone("こうえん"));
+
+        // 中身が実装していなければ、Controller が実装していない変換エンジンにするのと同じ (文脈は渡さない・通常の変換)
+        var plain = Create(new FixedConverter(C("こうえん", "公園")), new FakeScorer());
+        ((IWideContextConverter)plain).WideContext = "前の文。";
+        Assert.True(((IWideContextConverter)plain).WideContext is null, "渡す先が無ければ null");
+        Assert.Equal("公園", ((IStandaloneConverter)plain).ConvertStandalone("こうえん"));
+    }
+
+    private sealed class WideStandaloneConverter : IKanjiConverter, IWideContextConverter, IStandaloneConverter
+    {
+        public string? WideContext { get; set; }
+        public string? Convert(string hiragana) => "通常";
+        public IReadOnlyList<ConversionClause>? ConvertClauses(string hiragana, string? context = null) => [new(hiragana, "通常")];
+        public string? ConvertStandalone(string hiragana) => "単独";
+    }
+
     private sealed class NullConverter : IKanjiConverter
     {
         public string? Convert(string hiragana) => null;

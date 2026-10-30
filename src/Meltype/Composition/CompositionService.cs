@@ -34,7 +34,11 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
     /// <summary>zenz の状態 (トレイのメニュー用。MeltKelp #35)。</summary>
     public (string State, string? Place) ZenzStatus => _zenzEnabled() ? _zenz.Describe() : ("OFF (設定)", null);
     private ZenzRerankingConverter _hybrid = null!; // MeltKelp #2: HybridConverter を zenz の並べ替えで包む
-    private readonly IME.Imm32ImeController _imm32 = new();
+
+    // Zenzai (llama-server + zenz の GGUF)。設定で ON のときだけ、指定の場所が変わるたびに作り直す (持ち主は ZenzaiHolder)
+    private readonly ZenzaiHolder _zenzai = new();
+    private ZenzaiConverter? CurrentZenzai(CompositionOptions options) =>
+        options.UseZenzai() ? _zenzai.Get(options.ZenzaiServerPath(), options.ZenzaiModelPath()) : _zenzai.Get("", "");
     private readonly System.Windows.Forms.Timer _tick = new() { Interval = 100 };
     private int _pumpScheduled;
 
@@ -76,23 +80,54 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
             ContinueAfterConversion = options.ContinueAfterConversion,
             Learning = options.Learning,
             SeparateKeyRoles = options.SeparateKeyRoles,
+            EnglishFirstInput = options.EnglishFirstInput,
+            ConsonantAbbreviations = options.ConsonantAbbreviations,
             Meanings = options.Meanings ?? MeaningDictionary.Load(),
             RomajiTypos = options.RomajiTypos ?? RomajiTypoCorrector.Load(detector.Romaji),
             CorrectTypos = options.CorrectTypos,
             SlashAsMiddleDot = options.SlashAsMiddleDot,
+            ZSymbols = options.ZSymbols,
             SpaceAroundEnglish = options.SpaceAroundEnglish,
+            SpaceAroundNumbers = options.SpaceAroundNumbers,
+            NumberKeysSelectCandidates = options.NumberKeysSelectCandidates,
+            ShiftSpaceHalfWidth = options.ShiftSpaceHalfWidth,
+            EnterCommitsAsShown = options.EnterCommitsAsShown,
+            AlphanumericKeyStartsAsTyped = options.AlphanumericKeyStartsAsTyped,
+            FullWidthParentheses = options.FullWidthParentheses,
+            FullWidthSlash = options.FullWidthSlash,
+            SquareBrackets = options.SquareBrackets,
+            EscStepsBack = options.EscStepsBack,
+            EscRevertsSelectedClause = options.EscRevertsSelectedClause,
+            FunctionKeysAffectSelectedClause = options.FunctionKeysAffectSelectedClause,
+            CompatibleShortcuts = options.CompatibleShortcuts,
+            PartialCommit = options.PartialCommit,
+            MacControlKeys = options.MacControlKeys,
+            CursorIntoBrackets = options.CursorIntoBrackets,
+            ControlKeyBindings = options.ControlKeyBindings,
+            CalculatorCandidates = options.CalculatorCandidates,
+            LogKeyIntervals = options.LogKeyIntervals,
+            LaughterAfterKana = options.LaughterAfterKana,
+            ContextualLearning = options.ContextualLearning,
+            FullWidthSpaceByDefault = options.FullWidthSpaceByDefault,
+            ShowCandidatesWhileTyping = options.ShowCandidatesWhileTyping,
+            GitHubIssueCandidates = options.GitHubIssueCandidates,
+            GitHubRepository = options.GitHubRepository,
+            GitHubTitles = options.GitHubTitles,
+            ClipboardCandidates = options.ClipboardCandidates,
             Punctuation = options.Punctuation,
             TranslationHistory = options.TranslationHistory ?? new TranslationHistory(Config.AppPaths.TranslationHistoryFile),
             Predictor = options.Predictor ?? new Predictor(new PhraseHistory(Config.AppPaths.PhraseHistoryFile), UserDictionary, History),
             Predictions = options.Predictions,
+            EnglishNamePredictions = options.EnglishNamePredictions,
         };
         Phrases = resolved.Predictor?.Phrases;
         TranslationHistory = resolved.TranslationHistory;
-        _hybrid = new ZenzRerankingConverter(new HybridConverter(options.Engine, _mozc, _converter, reading => _windowsCandidates.Get(reading)), _zenz = new LlamaZenzScorer(useGpu: options.ZenzUseGpu), options.ZenzRerank);
+        _hybrid = new ZenzRerankingConverter(new HybridConverter(options.Engine, _mozc, _converter, reading => _windowsCandidates.Get(reading), () => CurrentZenzai(options), _zenzai.Failed), _zenz = new LlamaZenzScorer(useGpu: options.ZenzUseGpu), options.ZenzRerank);
         _zenzEnabled = options.ZenzRerank;
         _resolved = resolved;
         Controller = new CompositionController(Gate, detector, _hybrid, this, resolved);
-        Controller.Corrected += Corrections.Add;
+        // 直したときの「Zenzai を使う」も覚えておく (報告を開くまでに設定を変えても、直したときの設定で報告する。issue #1197)
+        Controller.Corrected += correction => Corrections.Add(correction with { Zenzai = options.UseZenzai() });
         if (options.Engine() != Config.ConversionEngine.System && _mozc.IsInstalled) _mozc.WarmUp();
         _showIndicator = options.ModeIndicator;
         _placement = options.Placement;
@@ -171,7 +206,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
     /// <summary>ユーザー辞書の登録画面用: 語の読みを推測する (かなならそのまま、漢字は Microsoft IME の逆変換)。分からなければ空。</summary>
     public string GuessReading(string word)
     {
-        if (word.All(c => c is >= 'ぁ' and <= 'ゖ' or >= 'ァ' and <= 'ヶ' or 'ー')) return new string(word.Select(c => c is >= 'ァ' and <= 'ヶ' ? (char)(c - 0x60) : c).ToArray());
+        if (word.All(c => KanaChars.IsHiraganaOrLongMark(c) || KanaChars.IsKatakana(c))) return KanaChars.ToHiragana(word);
         try
         {
             return _converter.Reading(word) ?? "";
@@ -267,7 +302,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         if (_invoker.IsHandleCreated && !_invoker.IsDisposed) _invoker.BeginInvoke(Controller.ResetContext);
     }
 
-    /// <summary>自動切替を止めたときなど。未確定の内容を確定し、残りの入力を通す。</summary>
+    /// <summary>Meltype を止めたときなど。未確定の内容を確定し、残りの入力を通す。</summary>
     public void Flush()
     {
         if (!InputAllowed())
@@ -340,13 +375,8 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
             return;
         }
         var inputs = new List<Native.INPUT>(text.Length * 2);
-        foreach (var c in text)
-        {
-            inputs.Add(UnicodeInput(c, up: false));
-            inputs.Add(UnicodeInput(c, up: true));
-        }
-        var array = inputs.ToArray();
-        Native.SendAll(array, "確定文字列の入力");
+        AddUnicodeText(inputs, text);
+        Native.SendAll(inputs.ToArray(), "確定文字列の入力");
     }
 
     private DataObject? _savedClipboard;
@@ -446,9 +476,9 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         {
             if (!InputAllowed()) return;
             if (IME.ImeTarget.FromForeground() is not { } target) return;
-            var state = _imm32.GetState(target);
+            var state = IME.Imm32ImeController.GetState(target);
             if (state.Mode != IME.ImeMode.Open) return;
-            var closed = _imm32.TrySetOpen(target, false, null, 150);
+            var closed = IME.Imm32ImeController.TrySetOpen(target, false, null, 150);
             Diagnostics.Log.Warn($"確定時に Microsoft IME が ON になっていました ({state}) → {(closed ? "OFF にしてから入力します" : "OFF にできませんでした")}。");
         }
         catch (Exception ex)
@@ -531,11 +561,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
             inputs.Add(KeyInput(VirtualKeys.Back, up: false));
             inputs.Add(KeyInput(VirtualKeys.Back, up: true));
         }
-        foreach (var c in text)
-        {
-            inputs.Add(UnicodeInput(c, up: false));
-            inputs.Add(UnicodeInput(c, up: true));
-        }
+        AddUnicodeText(inputs, text);
         Native.SendAll(inputs.ToArray(), "確定し直し");
     }
 
@@ -607,6 +633,24 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
 
     public bool IsShiftDown() => (Native.GetAsyncKeyState(VirtualKeys.Shift) & 0x8000) != 0;
 
+    /// <summary>クリップボードの文字 (変換した瞬間に 1 回だけ読む)。履歴に残さない印のある内容 (パスワード管理ソフトなど) は読まない。</summary>
+    public string? ClipboardText
+    {
+        get
+        {
+            try
+            {
+                if (!System.Windows.Forms.Clipboard.ContainsText()) return null;
+                if (System.Windows.Forms.Clipboard.ContainsData("ExcludeClipboardContentFromMonitorProcessing")) return null;
+                return System.Windows.Forms.Clipboard.GetText();
+            }
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.ExternalException or ThreadStateException)
+            {
+                return null;
+            }
+        }
+    }
+
     /// <summary>入力位置の高さとして信じる上限 (ピクセル)。これより高いのは入力欄や行全体の四角形。</summary>
     private const int MaxLineHeight = 48;
 
@@ -617,6 +661,14 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
     {
         if (_window.Visible)
         {
+            // Windows の検索の画面の横に出しているときは、確定しても動かさない。左なら右の端を、上なら下の端をそろえる (広がっても検索の画面の裏に入らないように)
+            if (_beside != BesideSearch.None)
+            {
+                _committedWhileVisible = "";
+                if (_beside == BesideSearch.Left) _window.ShowView(view, new Point(_window.Left, _window.Top), rightEdge: _searchLeftEdge);
+                else _window.ShowView(view, null);
+                return;
+            }
             // 確定した文字の分だけ右へ (同じ位置のままだと、確定した文字を変換ボックスが隠してしまう: issue #57)。
             // 入力欄のキャレットは確定した文字の入力が終わるまで動かないことがあるので、確定した文字の幅で動かす。
             // 改行を含むとき・右へずらすと画面の外に出るとき (折り返し) は、ずらさずに入力欄のキャレットの位置を取り直す。
@@ -636,6 +688,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
             }
         }
         _committedWhileVisible = "";
+        _beside = BesideSearch.None;
         var caret = FindCaret();
         // 入力欄が空のとき、アプリによっては入力位置ではなく入力欄の枠 (40px の欄など) や、複数行の欄全体の四角形が返る。
         // 枠と同じ高さなら、文字の高さは枠のおよそ半分 (1 行の欄の文字は上下の真ん中にある)。高すぎる四角形は、文字の高さが分からない。
@@ -651,28 +704,49 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         Diagnostics.Log.Info($"変換ボックスを出す入力位置: {(caret is { } r ? $"{r.X},{r.Y} 高さ {r.Height}{(wholeField ? " (入力欄の枠)" : "")}" : "分からない")}");
         _window.SetFontFamily(_font());
         _window.SetAppearance(_lightTheme(), _opacity());
+        // 出すモニターの拡大率に合わせる (入力位置のモニター。分からなければ変換ボックスを置く位置のモニター)
+        var monitorScale = MonitorScale(caret?.Location ?? FindAnchor(caret, caretSearched: true));
+        _window.SetMonitorScale(monitorScale);
         // 文字の大きさ: 自動なら、入力欄の文字の高さに合わせる。小さな入力欄で大きく出すぎないように。
+        // 入力位置の高さはそのモニターのピクセルなので、拡大率の分を除いてから比べる
         _window.SetScale(_size() switch
         {
             Config.CompositionSize.Small => 0.8F,
             Config.CompositionSize.Large => 1.25F,
             Config.CompositionSize.ExtraLarge => 1.6F,
             Config.CompositionSize.Huge => 2F,
-            Config.CompositionSize.Auto when textHeight is { } h && h >= 8 => Math.Clamp((float)h / _window.BaseTextHeight, 0.7F, 1.4F),
+            Config.CompositionSize.Auto when textHeight is { } h && h >= 8 => Math.Clamp(h / (_window.BaseTextHeight * monitorScale), 0.7F, 1.4F),
             // 文字の高さが分からないときは、ふつうの画面の文字 (16px 前後) に近い大きさ
             Config.CompositionSize.Auto => 0.8F,
             _ => 1F,
         });
-        // Windows の検索・スタートメニューは、ふつうのアプリより上の特別な層に出るので、変換ボックスが隠れてしまう。
-        // 検索の画面の右に出す。
+        // Windows の検索・スタートメニューは、ふつうのアプリより上の特別な層に出るので、重なると変換ボックスが隠れてしまう。
+        // 検索の画面の左に入れば左、上に打った行が入れば上、どちらも入らなければ右に出す。
+        // Windows 11 の中央寄せのスタートは、検索の画面の右に「モバイル デバイス」の欄が並ぶので、右は最後にする
+        // (スタート・検索の窓は CoreWindow で EnumWindows に出てこないので、横に並ぶ窓を集めて避けることもできない)。
         if (ShellSearchBounds() is { } search)
         {
-            // 右に入らなければ左に出す (はみ出した分を画面の中に戻すと、スタートメニューの裏に隠れる)。
             var screen = Screen.FromRectangle(search).WorkingArea;
-            var width = _window.Width;
-            var left = search.Right + 8 + width <= screen.Right || search.Left - 8 - width < screen.Left ? search.Right + 8 : search.Left - 8 - width;
-            Diagnostics.Log.Info($"Windows の検索の画面: {search} (変換ボックスはその{(left > search.Left ? "右" : "左")}に出す)");
-            _window.ShowView(view, new Point(left, (caret?.Bottom ?? search.Bottom) - 4));
+            var size = _window.Measure(view);
+            if (search.Left - 8 - size.Width >= screen.Left)
+            {
+                Diagnostics.Log.Info($"Windows の検索の画面: {search} (変換ボックスはその左に出す)");
+                _beside = BesideSearch.Left;
+                _searchLeftEdge = search.Left - 8;
+                _window.ShowView(view, new Point(search.Left - 8 - size.Width, (caret?.Bottom ?? search.Top) - 4), rightEdge: _searchLeftEdge);
+            }
+            else if (search.Top - 8 - screen.Top >= _window.TextOffset.Y * 2)
+            {
+                // 候補まで入りきらなければ作業領域の上端に寄せる (打った行は見え、候補の下のほうは検索の画面の裏に入る)
+                Diagnostics.Log.Info($"Windows の検索の画面: {search} (変換ボックスはその上に出す)");
+                _beside = BesideSearch.Above;
+                _window.ShowView(view, new Point(search.Left, search.Top - 8), above: true, belowY: screen.Top);
+            }
+            else
+            {
+                Diagnostics.Log.Info($"Windows の検索の画面: {search} (変換ボックスはその右に出す)");
+                _window.ShowView(view, new Point(search.Right + 8, (caret?.Bottom ?? search.Top) - 4));
+            }
             return;
         }
         // 入力位置に重ねる: 変換ボックスの文字の行を、入力位置の行の高さの真ん中にそろえる。
@@ -693,9 +767,32 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         _window.ShowView(view, FindAnchor(caret, caretSearched: true));
     }
 
+    /// <summary>変換ボックスを Windows の検索の画面のどちら側に出しているか (検索の画面のときだけ)。</summary>
+    private enum BesideSearch { None, Left, Above }
+    private BesideSearch _beside;
+    /// <summary>検索の画面の左に出しているときの、変換ボックスの右の端。</summary>
+    private int _searchLeftEdge;
+
+    /// <summary>その点のモニターの DPI と、システムの DPI の比。取れなければ 1。</summary>
+    private static float MonitorScale(Point at)
+    {
+        try
+        {
+            var monitor = Native.MonitorFromPoint(new Native.POINT { X = at.X, Y = at.Y }, Native.MONITOR_DEFAULTTONEAREST);
+            var system = Native.GetDpiForSystem();
+            if (monitor == IntPtr.Zero || system == 0 || Native.GetDpiForMonitor(monitor, 0, out var dpi, out _) != 0 || dpi == 0) return 1F;
+            return (float)dpi / system;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return 1F;
+        }
+    }
+
     public void Hide()
     {
         _committedWhileVisible = "";
+        _beside = BesideSearch.None;
         if (_window.Visible) _window.Hide();
     }
 
@@ -705,36 +802,17 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         "SearchHost", "SearchApp", "SearchUI", "StartMenuExperienceHost",
     };
 
-    /// <summary>
-    /// 前面が Windows の検索・スタートメニューなら、その画面の四角形。それ以外は null。
-    /// スタートメニューは、検索の欄 (SearchHost) と、その横の画面 (「モバイル デバイスを表示」の欄など、StartMenuExperienceHost) に
-    /// 分かれていることがあるので、同じ画面に出ている両方の窓を合わせた四角形にする (片方の右に出すと、もう片方の裏に隠れる、#18)。
-    /// </summary>
+    /// <summary>前面が Windows の検索・スタートメニューなら、その画面 (検索の欄のある窓) の四角形。それ以外は null。</summary>
     private static Rectangle? ShellSearchBounds()
     {
         var foreground = Native.GetForegroundWindow();
         if (!IsShellSearchWindow(foreground) || !Native.GetWindowRect(foreground, out var rect)) return null;
-        var bounds = Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
-        var screen = Screen.FromRectangle(bounds).Bounds;
-        var union = bounds;
-        var shell = ShellSearchProcessIds();
-        Native.EnumWindows((hwnd, _) =>
-        {
-            Native.GetWindowThreadProcessId(hwnd, out var pid);
-            if (hwnd != foreground && shell.Contains(pid) && Native.IsWindowVisible(hwnd) && !IsCloaked(hwnd) && Native.GetWindowRect(hwnd, out var r))
-            {
-                var other = Rectangle.FromLTRB(r.Left, r.Top, r.Right, r.Bottom);
-                // 画面の外に置いてある窓・大きさの無い窓・画面全体の窓 (隠れている検索の画面) は含めない
-                if (other.Width > 0 && other.Height > 0 && screen.IntersectsWith(other) && other != screen) union = Rectangle.Union(union, Rectangle.Intersect(other, screen));
-            }
-            return true;
-        }, IntPtr.Zero);
-        return union;
+        return Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
     }
 
     private static bool IsShellSearchWindow(IntPtr hwnd)
     {
-        Native.GetWindowThreadProcessId(hwnd, out var processId);
+        if (Native.GetWindowThreadProcessId(hwnd, out var processId) == 0) return false;
         try
         {
             using var process = System.Diagnostics.Process.GetProcessById((int)processId);
@@ -745,24 +823,6 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
             return false;
         }
     }
-
-    private static HashSet<uint> ShellSearchProcessIds()
-    {
-        var ids = new HashSet<uint>();
-        foreach (var name in ShellSearchProcesses)
-        {
-            foreach (var process in System.Diagnostics.Process.GetProcessesByName(name))
-            {
-                ids.Add((uint)process.Id);
-                process.Dispose();
-            }
-        }
-        return ids;
-    }
-
-    /// <summary>見えない窓 (スタートメニューを閉じているときの窓など) は、表示中でも DWM が「隠している」(cloaked)。</summary>
-    private static bool IsCloaked(IntPtr hwnd) =>
-        Native.DwmGetWindowAttribute(hwnd, Native.DWMWA_CLOAKED, out var cloaked, sizeof(int)) == 0 && cloaked != 0;
 
     /// <summary>
     /// キャレット (入力位置) の画面上の四角形。Windows のキャレット (メモ帳など) → UI Automation (Chrome・Discord など) の順に試す。
@@ -823,6 +883,16 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         },
     };
 
+    /// <summary>文字列を 1 文字ずつ (押す・離す) の打鍵にして足す。</summary>
+    private static void AddUnicodeText(List<Native.INPUT> inputs, string text)
+    {
+        foreach (var c in text)
+        {
+            inputs.Add(UnicodeInput(c, up: false));
+            inputs.Add(UnicodeInput(c, up: true));
+        }
+    }
+
     private static Native.INPUT UnicodeInput(char c, bool up) => new()
     {
         type = Native.INPUT_KEYBOARD,
@@ -846,6 +916,7 @@ internal sealed class CompositionService : ICompositionHost, IDisposable
         _words.Dispose(); // MeltKelp #27
         _windowsCandidates.Dispose();
         _mozc.Dispose();
+        _zenzai.Dispose();
         _window.Dispose();
         _indicator.Dispose();
     }
