@@ -145,7 +145,7 @@ grep "^## \[" wiki/log.md | tail -5
   上流の変更を捨てた衝突の解き方が見えない、と指摘されて直し、誤りの種類を台帳に足した。
 
 ## [2026-10-30] ingest | #46 上流 Meltype を v1.4.0 まで取り込む
-- 更新: [[zenz-rerank]], [[overview]], [[typed-keys-display]], [[upstream-update-stop]], [[upstream-report-stop]](後の 3 つは行番号のずれだけ)
+- 更新: [[zenz-rerank]], [[overview]], [[typed-keys-display]], [[upstream-update-stop]], [[upstream-report-stop]](この 3 つは行番号のずれだけ), [[build-install]](実施記録)
 - 備考: 上流は `HybridConverter` に Zenzai を渡すようにしたので、zenz の並べ替えの包みをその上に載せ直した。消えた
   「IME 自動切替」の `_imm32` は上流どおり除いた。上流の CLAUDE.md は `@AGENTS.md`(上流の貢献ルール)の 1 行で、MeltKelp 側を残した。
   上流が足したワークフローのうち書き込む・予定で走る 6 本を止め、`ime-tests` は残した。v1.4.1-pre.1 以降(日英判定の作り替え・
