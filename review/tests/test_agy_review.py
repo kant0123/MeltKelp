@@ -715,3 +715,13 @@ def test_cmd_review_with_upstream_does_not_use_pr_diff(monkeypatch, tmp_path):
     with pytest.raises(ar.ReviewError, match="stop"):
         ar.cmd_review(args)
     assert seen["sync"] == ("upstream/main", SHA, OTHER)
+
+
+def test_upstream_sync_diff_shows_upstream_changes_dropped_by_merge(sync_repo):
+    repo, _, base, upstream, _ = sync_repo
+    # 衝突を MeltKelp 側 (base) のまま解いて上流の変更を捨てた・上流が消したファイルを base のまま残した・
+    # 上流が足したファイルを消した。どれも base...head には出ないが、上流と違うので見せる
+    head = _write(repo, {"hook.cs": "x\nhook\n", "gone.txt": "g\n", "new.txt": None})
+    diff, _, _ = ar.upstream_sync_diff(upstream, base, head, cwd=repo)
+    assert {"hook.cs", "gone.txt", "new.txt"} <= set(ar.changed_paths(diff))
+    assert "-y" in diff

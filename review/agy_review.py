@@ -347,7 +347,7 @@ def _tree(rev, cwd=None):
 def upstream_sync_diff(upstream, base, head, cwd=None):
     """(見せる差分, 上流と同じで省いたファイル数, 上流の SHA) を返す。
 
-    PR (base...head) で変わったファイルを次のように振り分ける。
+    PR (base...head) か上流 (分岐点..upstream) で変わったファイルを次のように振り分ける。
     - head の内容が上流と同じ → 上流をそのまま取り込んだので省く
     - 上流にあって (上流が消したものも含む) 内容が違う → 上流に対する MeltKelp の差分 (git diff upstream head)
     - 上流に無い (MeltKelp だけのファイル) → この PR での変更 (git diff base...head)
@@ -365,7 +365,11 @@ def upstream_sync_diff(upstream, base, head, cwd=None):
     # 上流が知っているパス。上流が消したファイル (上流に無いが merge base にはある) も上流側のものとして扱う。
     fork_point = git("merge-base", base, up, cwd=cwd).strip()
     up_tree, head_tree, fork_tree = _tree(up, cwd), _tree(head, cwd), _tree(fork_point, cwd)
-    changed = [p for p in git("diff", "--name-only", "-z", "--no-renames", f"{base}...{head}", cwd=cwd).split("\0") if p]
+    # PR で変わったファイルに、上流が変えたファイルも足す。衝突を base のまま解いて上流の変更を捨てたファイルは
+    # base...head に出ないが、上流と違うので見せる必要がある。
+    changed = list(dict.fromkeys(
+        p for rng in (f"{base}...{head}", f"{fork_point}..{up}")
+        for p in git("diff", "--name-only", "-z", "--no-renames", rng, cwd=cwd).split("\0") if p))
     parts, same = [], 0
     for path in changed:
         upstream_owned = path in up_tree or path in fork_tree
