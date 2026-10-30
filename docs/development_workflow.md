@@ -194,6 +194,8 @@ MeltKelp 用のワークフローを別に足すか)。
 上流の更新は `upstream-sync` スキルで、worktree の中で `git merge upstream/main` して PR で入れる。
 rebase・squash はしない(上流の履歴を保ち、次の取り込みの merge base を正しく保つため)。
 衝突の多くは、MeltKelp が上流のファイルに入れた差し込み口で起きる。差し込み口を数行に留めているのはそのため。
+取り込みの PR の agy レビューは `--upstream <上流のコミット>` を付け、上流に対する MeltKelp の差分だけを見せる
+(上流の変更は数百万文字になり上限を超えるうえ、上流のコードへの指摘は対象外のため。`review/README.md`)。
 
 ### 無効にした上流のワークフロー
 

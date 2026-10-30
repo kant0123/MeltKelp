@@ -108,6 +108,7 @@ gh pr checks <PR番号> --watch
 
 ```bash
 python review/agy_review.py --pr <PR番号>
+# 上流 Meltype の取り込み PR では --upstream <取り込んだ上流のコミット> を付ける(upstream-sync 手順 6)
 ```
 
 - APPROVE → 手順 5 へ。
