@@ -41,7 +41,7 @@ jobs:
 
       # Mozc-UT の辞書の統合 (native/mozc/merge-ut-dictionary.py)。本物の Mozc も辞書も要らない。
       # 環境変数 MELTYPE_UT_DICTIONARY を指定したときだけ使うものなので、ビルドには影響しない。
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - name: Test Mozc-UT dictionary merge
@@ -136,7 +136,7 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
       - if: steps.check.outputs.build == 'true'
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - name: Bazelisk
