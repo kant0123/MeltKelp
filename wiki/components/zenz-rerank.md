@@ -31,6 +31,10 @@ related: [context-rerank-lessons, engine-base-choice, build-install, overview, r
 MeltKelp の並べ替えはその `HybridConverter` を外から包む形のまま載せ直した(#46)ので、**両方 ON だと Zenzai の結果の
 各文節の先頭をもう一度選び直す。** この組み合わせは確かめておらず、扱いは #47 で決める。
 
+- `HybridConverter` が実装するインターフェース(`ILearningConverter`・v1.4.0 で足された `IWideContextConverter`・`IStandaloneConverter`)は、
+  デコレーターも実装して中身に渡す。Controller が `_converter is ...` で見るので、渡さないと黙って機能が落ちる(#48 の agy レビューで発覚。
+  [[recurring-review-findings]] の「包むラッパーが、中身の実装している追加のインターフェースを隠す」)
+
 - 並べ替えを Zenzai に置き換えなかったのは、方式が違うため。Zenzai は読みから文を生成し、自信が低い・遅い(400ms 超)・
   文脈の無い短い読みでは使わない。並べ替えは変換エンジンの候補の中から選ぶだけで、候補を作らない([[engine-base-choice]]・
   [[context-rerank-lessons]])
