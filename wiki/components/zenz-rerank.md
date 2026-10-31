@@ -1,7 +1,7 @@
 ---
 type: component
 summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点と CPU との切り替え
-updated: 2026-10-30
+updated: 2026-10-31
 related: [context-rerank-lessons, engine-base-choice, build-install, overview, recurring-review-findings]
 ---
 
@@ -132,6 +132,32 @@ GPU が見つかればモデルを全部 GPU に載せる。OFF なら CPU 版�
   覚えるので、同じ exe の 2 回目の起動からは速い)。UI スレッドを止めるので、読み込みの最後に 1〜16・24・32…256 トークンで 1 回ずつ空回しする
   (`WarmUpGpu()`)。これで初めて起動したときの読み込みは約 3 秒、2 回目からは約 0.55 秒(別スレッドなので変換は止まらない)。
 - メモリ: VRAM に載せても `Meltype.exe` のワーキングセットは減らず、Vulkan のドライバーの分だけ増える(手元で約 265MB → 427MB)。
+
+### 内蔵 GPU しかない PC では CPU より遅い(#56)
+
+`ZenzUseGpu` の既定 ON は、GPU が内蔵 1 つだけの PC でも Vulkan 版を選ぶ。i3-8100(4 コア 4 スレッド)+ Intel UHD 630(内蔵のみ、
+`uma: 1`、13/13 層を GPU に載せた)で、モデル 3 つ(small・xsmall v3.1・xsmall v3.2)を CPU 版・Vulkan 版で測った(2026-10-31、
+`--perf` 10 回を 2 回ずつ、Mozc あり、`GGML_VK_VISIBLE_DEVICES=0`。測り方は #55 と同じで、`MELTYPE_DATA_DIR` を条件ごとの作業フォルダーに向ける)。
+1 キー cold の p95(ms)。2 回の値を回順に並べた:
+
+| 例文 | モデル | CPU | 内蔵 GPU |
+| --- | --- | --- | --- |
+| 14 文 | small | 156 / 156 | 309 / 309 |
+| 14 文 | xsmall | 87 / 54 | 117 / 120 |
+| 60 文 | small | 156 / 158 | 309 / 331 |
+| 60 文 | xsmall | 48 / 105 | 155 / 139 |
+
+zenz なしは 3〜6ms。ワーキングセットの最大は CPU の small 約 185MB・xsmall 約 125MB に対し、内蔵 GPU は small 約 350MB・xsmall 約 230MB。
+v3.2 の xsmall も同じプロンプトで動き、速さも正解数も v3.1 とほぼ同じだった。
+
+- **この PC でも内蔵 GPU は CPU より遅く、メモリも約 +100〜170MB 多い。** small で p95 が約 2 倍。i5-12600K(#55)と同じ向き。
+- **CPU の small の p95(156〜158ms)は予算(`BudgetMs` 150ms)に張り付いている。** 実際の採点は予算より長く、打ち切られた文節は
+  変換エンジンの順のまま。CPU を 2 論理コアに絞る(`ProcessorAffinity = 0x3`、14 文、1 回だけ)と、small の正解は 11/14(zenz なしと同じ)に
+  落ちた。内蔵 GPU は同じ条件で 13/14。GPU は abort callback が効かず予算を超える(p95 約 310ms)が、採点は最後まで終わる。
+  つまり低スペック CPU では、CPU の small は速いのではなく間に合っていない。xsmall は 2 コアでも p95 約 160ms でほぼ予算どおりだが、
+  正解は 11/14 に落ちた(同じ条件の内蔵 GPU は 13/14)。
+- **回ごとのずれが大きい**(CPU の xsmall は p95 が 48 と 105ms)。測定中も PC を使っていたため。1 桁違いまでは言えない。
+- 既定(`ZenzUseGpu` ON)は変えていない。内蔵 GPU(`uma: 1`)のときに CPU 版を使う案は、`HasGpu()` 周りの変更が要るので別に決める。
 
 ## トレイのメニューの表示
 
