@@ -20,7 +20,7 @@ Wiki 全ページのカタログ。質問に答えるとき・作業に着手す
 ## Components — モジュール・機能単位 (`components/`)
 
 - [[typed-keys-display]] — 設定「打ったキーを表示」の形式(ローマ字・表示しない・ひらがな・単語ごとに空白を入れたひらがな)。上流の ON / OFF のキーを残したままプルダウンにした仕組みと、単語の区切りに Microsoft IME の形態素解析を使う理由
-- [[zenz-rerank]] — zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点と CPU との切り替え
+- [[zenz-rerank]] — zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点と CPU との切り替え・軽いモデル(xsmall)との比較
 
 ## Concepts — 横断的な仕組み・設計判断 (`concepts/`)
 

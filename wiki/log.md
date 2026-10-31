@@ -162,3 +162,9 @@ grep "^## \[" wiki/log.md | tail -5
 - 更新: [[zenz-rerank]]
 - 備考: small・xsmall v3.1・xsmall v3.2 を CPU 版と Vulkan 版で測った。内蔵 GPU は i5-12600K(#55)に続きこの PC でも CPU より遅く、
   CPU の small は予算に張り付いて 2 コアでは間に合っていない、という点を GPU の節に足した。既定は変えていない(決めるのは別)。
+
+## [2026-10-31] query | PR #57 zenz-v3.1-xsmall と small の比較(CPU・CPU 2 コア・内蔵 GPU)
+- 更新: [[zenz-rerank]]
+- 備考: xsmall は今のスコアラーのまま動き、1 キーの p95 が small の約 1/3〜1/4。2 コアの small は予算 150ms に張り付く。
+  精度は同等(差は 1 文でノイズの範囲)。内蔵 GPU は CPU より速くなかったので #56 に切り出し、PR #59 の i3-8100 の結果に合わせて書いた。
+  設定でモデルを選ぶ実装は #55 で別に決める。
