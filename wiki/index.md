@@ -26,6 +26,7 @@ Wiki 全ページのカタログ。質問に答えるとき・作業に着手す
 
 - [[context-rerank-lessons]] — imev の Mozc 文脈リランカーで踏んだ落とし穴(かな候補・元の順位の事前・学習との順序・採点の鈍さ・打ち切り)と、MeltKelp の zenz の並べ替えでそれぞれどうしたか。採点の鈍さとカタカナの写しの原因は imev のプロンプトのタグの誤りだった
 - [[engine-base-choice]] — zenz の並べ替えを載せる土台に Meltype を選んだ理由。imev での Mozc 本家・Ohagey(azooKey + Zenzai)の評価と、Meltype に移した決め手
+- [[learned-short-words]] — 英字に直して覚えた短い語(no・go)を、英字の略語の後ろの助詞(APIno)にまで使わない理由と、再現するときの罠(学習は検出器に渡さないと効かない)
 - [[recurring-review-findings]] — レビューで妥当と判定された指摘を誤りの種類ごとに集約した台帳。着手時と push 前に読む
 - [[upstream-report-stop]] — トレイの「不具合の報告・提案」「直した誤判定を報告」をトレイから消し、報告の URL が上流 Meltype の Issue 画面を開かないようにした理由と仕組み。上流の取り込みで AppInfo.cs・TrayApplicationContext.cs が衝突したときに読む
 - [[upstream-update-stop]] — 上流 Meltype のリリースによる自動更新(確認・ダウンロード・適用・手動)を MeltKelp で止めた理由と仕組み。上流の取り込みで Updater.cs が衝突したときに読む
