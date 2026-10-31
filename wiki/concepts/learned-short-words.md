@@ -31,7 +31,7 @@ F10 などで英字に直した語は `LanguageMemory`(`%LOCALAPPDATA%\Meltype\l
 - **テストで学習を再現するには `CompositionTests.Detector.Memory` に入れる。** `Keyboard(languages: …)` は変換側の
   `CompositionOptions.Languages` に渡るだけで、判定に使う `CompositionDetector.Memory` は別。実機は
   `CompositionService` のコンストラクターで両方に渡している。`Keyboard` だけに渡すと「学習しても再現しない」という誤った結論になる
-  (#49 の調査で踏んだ)。検出器は共有なので、`finally` で元に戻す(`src/Meltype.Core.Tests/ApiParticleTests.cs:13 Typed()`)
+  (#49 の調査で踏んだ)。検出器は共有なので、`finally` で元に戻す(`src/Meltype.Core.Tests/ApiParticleTests.cs:12 Typed()`)
 - `--repro` は学習・ユーザー辞書・設定の無い状態なので、学習が原因の不具合は再現しない。実機のデータは
   `languages.json` の `English` / `Explicit` / `Count` だけ見れば足りる(入力した語そのものは Issue・PR に書かない)
 - 英数(直接入力)状態では、大文字で始まる語や英語と決まった語の後ろは判定をやめて素通しする(`CompositionController.cs` の
