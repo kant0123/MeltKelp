@@ -1,7 +1,7 @@
 ---
 type: component
-summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点と CPU との切り替え
-updated: 2026-10-30
+summary: zenz で漢字変換の最初の候補を文脈つきに選び直す部品(HybridConverter のデコレーターと llama.cpp の採点器)。差し込み口・文脈の作り方・学習との順序・かなの扱い・ランタイムの置き場所と版の固定・GPU(Vulkan)での採点と CPU との切り替え・軽いモデル(xsmall)との比較
+updated: 2026-10-31
 related: [context-rerank-lessons, engine-base-choice, build-install, overview, recurring-review-findings]
 ---
 
@@ -163,6 +163,37 @@ Vulkan 版でも GPU が無い・載せられずに CPU で読み込み直した
   3 秒〜120 秒休んだ後の 1 回目も 13〜18ms(GPU の省電力からの戻りで遅くはならなかった)。
 - `--perf` は最初に 1 周打ってから測るので、zenz の控えを捨てないと cold でも採点の結果を使い回してしまい、導入後のほうが速く見えた
   (`Performance.cs` の cold の前に `PerformanceZenz.ClearCache()` を足したのはそのため)。
+
+## 軽いモデル(xsmall)との比較
+
+#55。低スペック PC 向けに、zenz-v3.1-xsmall(Q5_K_M、約 21MB・約 25.6M パラメータ。small は約 74MB・約 91M)を同じ条件で測った。
+**コードは変えずに動く:** xsmall の GGUF を `ggml-model-Q5_K_M.gguf` の名前で置けば、今の `LlamaZenzScorer`(b4846)が読み込んで採点できる
+(CPU 版・Vulkan 版の両方)。設定でモデルを選ぶ実装は入れていない。
+
+測り方: `MELTYPE_DATA_DIR` を測るモデルごとの作業フォルダー(`zenz\cpu` または `zenz\vulkan` とモデル)に向け、
+`--perf <出力> <例文> 10`。CPU を 2 コアにしたのは、PowerShell のプロセスの `ProcessorAffinity = 0x3`(子プロセスが引き継ぐ)。
+内蔵 GPU は `GGML_VK_VISIBLE_DEVICES=1`(b4846 の Vulkan 版で効く。この PC では 0 が外付け、1 が内蔵)。
+i5-12600K・Intel UHD 770・Mozc あり。1 キー cold の p95 / p99(ms)・変換の正解数
+(14 文 = `zenz-rerank-cases.tsv`、60 文 = `mozc-compare-cases.tsv`):
+
+| 条件 | 例文 | zenz なし | small | xsmall |
+| --- | --- | --- | --- | --- |
+| CPU 全コア | 14 文 | 2.2 / 3.2・11 | 84.8 / 156.9・14 | 23.0 / 33.1・13 |
+| CPU 全コア | 60 文 | 1.7 / 2.4・53 | 49.1 / 70.4・54 | 16.0 / 22.6・55 |
+| CPU 2 コア | 14 文 | 3.5 / 5.2・11 | 154.6 / 159.3・14 | 43.5 / 63.6・13 |
+| CPU 2 コア | 60 文 | 1.8 / 2.7・53 | 149.9 / 157.4・53 | 39.6 / 57.8・55 |
+| 内蔵 GPU(Vulkan) | 14 文 | - | 92.6 / 140.5・14 | 32.4 / 46.6・14 |
+| 内蔵 GPU(Vulkan) | 60 文 | - | 120.8 / 164.0・55 | 43.8 / 58.3・55 |
+
+- **xsmall は 3 条件とも small の約 1/3〜1/4 の時間。** ワーキングセットの最大は zenz なし 78〜82MB・small 約 180MB・xsmall 約 120MB(CPU)。
+- **2 コアの small は p95 が約 150ms で、予算(`BudgetMs` 150ms)にほぼ張り付く。** 予算切れの文節は変換エンジンの順のままなので、
+  60 文の正解が 54 → 53 に落ちた(xsmall は 55)。低スペック PC では small は効く前に打ち切られうる。
+- **精度の差は 1 文ほどで、向きが条件で変わるので、ノイズの範囲。** GPU(fp16)と CPU で採点が僅かに違い、正解の数が 1 つ動く。
+  xsmall だけが外した 14 文の 1 つは「とき」を「時」と書く表記の違い。
+- **内蔵 GPU は CPU より速くない**(この PC では。CPU が遅い PC では逆になりうるが、確かめていない)。
+  small で CPU 全コア 85 / 49ms に対し内蔵 GPU 93 / 121ms、メモリは約 +170MB。`ZenzUseGpu` の既定 ON が内蔵 GPU だけの PC で
+  損かどうかは #56。
+- 同じ small でも p95 は回ごとに大きくずれる(上の「実測」の 40ms に対し今回 85 / 49ms)。絶対値より、同じ回の比を見る。
 
 ## 落とし穴
 
