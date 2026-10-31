@@ -157,3 +157,8 @@ grep "^## \[" wiki/log.md | tail -5
 - 更新: [[overview]]
 - 備考: 実機で no を F10 で英字にして確定した 1 回の学習が原因。最初は `--repro`・`Keyboard(languages:)` で再現せず、
   学習は検出器の `Memory` に渡さないと判定に効かない、と気づくまで原因を見誤った(ページの「調べるときの罠」)。
+
+## [2026-10-31] query | #56 内蔵 GPU しかない PC(i3-8100 + UHD 630)では、zenz を GPU で動かすと CPU より遅い
+- 更新: [[zenz-rerank]]
+- 備考: small・xsmall v3.1・xsmall v3.2 を CPU 版と Vulkan 版で測った。内蔵 GPU は i5-12600K(#55)に続きこの PC でも CPU より遅く、
+  CPU の small は予算に張り付いて 2 コアでは間に合っていない、という点を GPU の節に足した。既定は変えていない(決めるのは別)。
