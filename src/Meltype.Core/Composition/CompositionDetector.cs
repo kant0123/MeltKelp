@@ -744,7 +744,8 @@ public sealed partial class CompositionDetector
         if (readableEnglish && !NasalContinues(lower, next)) return true;
         // ユーザーが英字 / かなに直して覚えた語。ただし短くてローマ字として読める語 (go、no) は、日本語のすぐ後ろ
         // (nihon|go) では使わない (一度 go を英字で確定しただけで、日本語 が にほんgo になっていた)。
-        if (Memory?.Get(lower) is { } learned && !(learned && before < 0 && lower.Length <= 3 && Fragment() is { IsValid: true, Partial: "" })) return learned;
+        // 入力の途中で前の区間にくっついているとき (API|no) も同じ: 英語の語どうしは空白で分かれるので、助詞 (MeltKelp #49)。
+        if (Memory?.Get(lower) is { } learned && !(learned && (before < 0 || !startOfInput) && lower.Length <= 3 && Fragment() is { IsValid: true, Partial: "" })) return learned;
         // 5 文字以上の英単語で、ローマ字としても読めるもの:
         // - c 行の綴り (camera、coffee、class) は英語。日本語を打つときは k を使う (カメラ は kamera)。
         // - ローマ字として読むと ぢ・づ になる綴り (radio = らぢお、studio、audio) で、ふつうの日本語の語にならないなら英語。
